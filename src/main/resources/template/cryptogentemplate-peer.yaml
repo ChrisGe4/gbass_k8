@@ -1,0 +1,19 @@
+# ---------------------------------------------------------------------------
+# "PeerOrgs" - Definition of organizations managing peer nodes
+# ---------------------------------------------------------------------------
+#PeerOrgs:
+  - Name: ORG
+    Domain: ORG.DOMAIN
+    CA:
+       Hostname: ca # implicitly ca.ORG.example.com
+    Template:
+      Count: COUNT
+      SANS:
+        - "localhost"
+    # ---------------------------------------------------------------------------
+    # "Users"
+    # ---------------------------------------------------------------------------
+    # Count: The number of user accounts _in addition_ to Admin
+    # ---------------------------------------------------------------------------
+    Users:
+      Count: 1
