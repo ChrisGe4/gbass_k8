@@ -3,8 +3,8 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  namespace: $namespace
-  name: $podName
+  namespace: DOMAIN
+  name: ORDERER_NAME.DOMAIN
 spec:
   replicas: 1
   strategy: {}
@@ -13,12 +13,12 @@ spec:
       labels:
         app: hyperledger
         role: orderer
-        org: $namespace
-        orderer-id: $ordererID
+        org: ORG
+        orderer-id: ORDERER_NAME
     spec:
       containers:
-      - name: $podName
-        image: hyperledger/fabric-orderer:x86_64-1.0.0
+      - name: ORDERER_NAME
+        image: hyperledger/fabric-orderer:x86_64-1.1.0
         env:
         - name: ORDERER_GENERAL_LOGLEVEL
           value: debug
@@ -27,60 +27,61 @@ spec:
         - name: ORDERER_GENERAL_GENESISMETHOD
           value: file
         - name: ORDERER_GENERAL_GENESISFILE
-          value: /var/hyperledger/orderer/orderer.genesis.block
+          value: /etc/hyperledger/configtx/genesis.block
         - name: ORDERER_GENERAL_LOCALMSPID
-          value: $localMSPID
+          value: OrdererMSP
         - name: ORDERER_GENERAL_LOCALMSPDIR
-          value: /var/hyperledger/orderer/msp
+          value: /etc/hyperledger/crypto/orderer/msp
         - name: ORDERER_GENERAL_TLS_ENABLED
-          value: "false"
+          value: "true"
         - name: ORDERER_GENERAL_TLS_PRIVATEKEY
-          value: /var/hyperledger/orderer/tls/server.key
+          value: /etc/hyperledger/crypto/orderer/tls/server.key
         - name: ORDERER_GENERAL_TLS_CERTIFICATE
-          value: /var/hyperledger/orderer/tls/server.crt
+          value: /etc/hyperledger/crypto/orderer/tls/server.crt
         - name: ORDERER_GENERAL_TLS_ROOTCAS
-          value: '[/var/hyperledger/orderer/tls/ca.crt]'
-        workingDir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+          value: '[/etc/hyperledger/crypto/orderer/tls/ca.crt]'
+        workingDir: /etc/hyperledger
         ports:
          - containerPort: 7050
         command: ["orderer"]
         volumeMounts:
-         - mountPath: /var/hyperledger/orderer/msp 
+         - mountPath: /etc/hyperledger/crypto/orderer
            name: certificate
-           #subPath: crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp
-           subPath: $mspPath
-         - mountPath: /var/hyperledger/orderer/tls
-           name: certificate
-           #subPath: crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/tls/
-           subPath: $tlsPath
-         - mountPath: /var/hyperledger/orderer/orderer.genesis.block
-           name: certificate
-           subPath: genesis.block
+         - mountPath: /etc/hyperledger/configtx
+           name: channel
       volumes:
-       - name: certificate
-         persistentVolumeClaim:
-             claimName: $pvName
+#       - name: certificate
+#         persistentVolumeClaim:
+#             claimName: $pvName
            #path: /opt/share
          #persistentVolumeClaim:
          #  claimName: nfs
+          - name: certificate
+            hostPath:
+                  path: hf/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/
+                  type: Directory
+           - name: channel
+             hostPath:
+                  path: hf/channel
+                  type: Directory
 
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: $ordererID
-  namespace: $namespace
+  name: ORDERER_NAME
+  namespace: DOMAIN
 spec:
  selector:
    app: hyperledger
    role: orderer
-   orderer-id: $ordererID
-   org: $namespace
+   orderer-id: ORDERER_NAME
+   org: ORG
  type: NodePort
  ports:
    - name: listen-endpoint
      protocol: TCP
      port: 7050
      targetPort: 7050
-     nodePort: $nodePort
+     nodePort: NODEPORT
