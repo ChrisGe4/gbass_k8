@@ -64,6 +64,8 @@ public class DeploymentService {
       PROJECT_VM_DIR + CRYPTO_DIR + "peerOrganizations/ORG.DOMAIN/users/Admin@ORG.DOMAIN/msp/";
   public static String ORG_PLACEHOLDER = "ORG";
   public static String DOMAIN_PLACEHOLDER = "DOMAIN";
+  public static String ORDERER_NAME_PLACEHOLDER = "ORDERER_NAME";
+  public static String ORDERER_PORT_PLACEHOLDER = "ORDERER_PORT";
   public static String CONNECTION_FILE_NAME_TEMPLATE = "NETWORKNAME-connection-ORG";
   public static String ANCHORPEER_CMD =
       "peer channel update -o ORDERER_HOST:ORDERER_PORT -c CHANNEL_NAME -f ANCHOR_FILE --tls --cafile ORDERER_CA";
@@ -152,7 +154,7 @@ public class DeploymentService {
     createConfigtxYaml(orgNameIpMap, config);
     createConfigtxFiles(orgNameIpMap, config);
 
-    createDockerComposeFiles(orgNameIpMap, config, orgPk);
+    createOrdererDeploymentYamlFiles(orgNameIpMap, config, orgPk);
     createCaServerYaml(orgNameIpMap, config);
 
     distributeCerts(orgNameIpMap, config);
@@ -508,34 +510,6 @@ public class DeploymentService {
 
   }
 
-  //todo: make it configurable
-  public void distributeChaincode(Map<String, Map<String, String>> orgNameIpMap,
-      NetworkConfig config) {
-    log.info("Calling distributeChaincode method");
-    try {
-
-      FileUtils.copyDirectory(new File(Resources.getResource("chaincode").toURI()),
-          new File(Paths.get(workingDir, "chaincode").toUri()), false);
-
-    } catch (Throwable t) {
-      throw new RuntimeException("Cannot copy chaincode to from resource", t);
-    }
-    for (String org : orgNameIpMap.keySet()) {
-      for (String instance : orgNameIpMap.get(org).keySet()) {
-        try {
-          String path = workingDir + "chaincode";
-
-          appendToFile(scriptFile, "echo copying chaincode folder to " + instance);
-          copyFileToGcpVm(path, PROJECT_VM_DIR, instance, config);
-        } catch (Throwable t) {
-          throw new RuntimeException("Cannot write to script file ", t);
-        }
-      }
-    }
-
-
-  }
-
 
   public void createCaServerYaml(Map<String, Map<String, String>> orgNameIpMap,
       NetworkConfig config) {
@@ -568,42 +542,40 @@ public class DeploymentService {
 
   }
 
-  public void createDockerComposeFiles(Map<String, Map<String, String>> orgNameIpMap,
+  public void createOrdererDeploymentYamlFiles(Map<String, Map<String, String>> orgNameIpMap,
       NetworkConfig config, Map<String, String> orgDomainPkMap) {
     log.info("Creating docker compose files");
 
     try {
       String ordererTemplate = new String(Files.readAllBytes(Paths.get(
-          Resources.getResource("template/docker-composetemplate-orderer.yaml").toURI())));
+          Resources.getResource("k8/fabric_k8_template_orderer.yaml").toURI())));
 
-      String peerBaseTemplate = new String(Files
-          .readAllBytes(Paths.get(Resources.getResource("template/peer-base.yaml").toURI())));
+
+      //create orderer docker compose file
+      String orderer =
+          ordererTemplate.replaceAll(ORDERER_PORT_PLACEHOLDER, appConfiguration.ORDERER_PORT)
+
+              .replaceAll(DOMAIN_PLACEHOLDER, appConfiguration.DOMAIN).replaceAll(ORDERER_NAME_PLACEHOLDER, config.getOrdererName());
+
+
+
+
+      String fileName = String.join("", workingDir, "docker-compose-orderer.yaml");
+      Files.write(Paths.get(fileName), orderer.getBytes(), StandardOpenOption.CREATE);
+      appendToFile(scriptFile, "echo copying file " + fileName);
+      copyFileToGcpVm(fileName, PROJECT_VM_DIR + "docker-compose.yaml",
+          config.getOrdererName(), config);
+      copyFileToGcpVm(workingDir + "base.yaml", PROJECT_VM_DIR + "base.yaml",
+          config.getOrdererName(), config);
+    } catch (Throwable e) {
+      throw new RuntimeException("Cannot create docker compose yaml file ", e);
+    }
+
+
+      //creating peer docker compose files
 
       String peerTemplate = new String(Files.readAllBytes(Paths
           .get(Resources.getResource("template/docker-composetemplate-peer.yaml").toURI())));
-
-      String ordererNameIp = String.join("", "orderer.", appConfiguration.DOMAIN, ":",
-          orgNameIpMap.get(config.getOrdererName()).get(config.getOrdererName()));
-      Set<String> orgs = Sets.newHashSet(orgNameIpMap.keySet());
-      orgs.remove(config.getOrdererName());
-
-      Map<String, String> extraHostsMappingByOrg = orgs.stream()
-          //   .filter(o -> !o.equals(config.getOrdererName()))
-          .collect(toMap(org -> org, org ->
-
-              orgNameIpMap.get(org).entrySet().stream().map(e ->
-
-                  String.join("", EXTRA_HOSTS_PREFIX, e.getKey().split("-")[1], ".", org, ".",
-                      appConfiguration.DOMAIN, ":", e.getValue()))
-                  .collect(Collectors.joining(System.lineSeparator()))
-
-          ));
-
-      String ordererHost =
-          String.join("", System.lineSeparator(), EXTRA_HOSTS_PREFIX, ordererNameIp);
-      System.out.println("orgs = " + orgs);
-
-      //creating peer docker compose files
       for (String org : orgs) {
         for (String peer : orgNameIpMap.get(org).keySet()) {
           String extraHosts = String
@@ -634,23 +606,7 @@ public class DeploymentService {
 
       }
 
-      //create orderer docker compose file
-      String orderer =
-          ordererTemplate.replaceAll("ORDERER_PORT", appConfiguration.ORDERER_PORT)
 
-              .replaceAll("DOMAIN", appConfiguration.DOMAIN).replaceAll("CLI_EXTRA_HOSTS",
-              String.join(System.lineSeparator(), extraHostsMappingByOrg.values())
-                  .concat(ordererHost));
-      String fileName = String.join("", workingDir, "docker-compose-orderer.yaml");
-      Files.write(Paths.get(fileName), orderer.getBytes(), StandardOpenOption.CREATE);
-      appendToFile(scriptFile, "echo copying file " + fileName);
-      copyFileToGcpVm(fileName, PROJECT_VM_DIR + "docker-compose.yaml",
-          config.getOrdererName(), config);
-      copyFileToGcpVm(workingDir + "base.yaml", PROJECT_VM_DIR + "base.yaml",
-          config.getOrdererName(), config);
-    } catch (Throwable e) {
-      throw new RuntimeException("Cannot create docker compose yaml file ", e);
-    }
 
   }
 

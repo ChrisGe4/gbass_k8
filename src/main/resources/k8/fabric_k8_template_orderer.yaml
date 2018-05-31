@@ -42,7 +42,7 @@ spec:
           value: '[/etc/hyperledger/crypto/orderer/tls/ca.crt]'
         workingDir: /etc/hyperledger
         ports:
-         - containerPort: 7050
+         - containerPort: ORDERER_PORT
         command: ["orderer"]
         volumeMounts:
          - mountPath: /etc/hyperledger/crypto/orderer
@@ -82,6 +82,6 @@ spec:
  ports:
    - name: listen-endpoint
      protocol: TCP
-     port: 7050
-     targetPort: 7050
+     port: ORDERER_PORT
+     targetPort: ORDERER_PORT
      nodePort: NODEPORT
