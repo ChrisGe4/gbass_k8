@@ -598,11 +598,10 @@ public class DeploymentService {
           String fileName = String.join("", workingDir, yamlFileName);
           Files.write(Paths.get(fileName), content.getBytes(), StandardOpenOption.CREATE);
           log.info(yamlFileName + " created.");
-
+          peersYamlFiles.add(yamlFileName);
         }
-
-
       }
+      return peersYamlFiles;
     } catch (Throwable e) {
       throw new RuntimeException("Cannot create peer k8 yaml file ", e);
     }
