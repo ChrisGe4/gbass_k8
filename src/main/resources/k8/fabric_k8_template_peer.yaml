@@ -1,7 +1,7 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  namespace: ORG
+  namespace: DOMAIN
   name:	PEER_NAME.ORG.DOMAIN
 spec:
   replicas: 1
@@ -19,7 +19,7 @@ spec:
       - name: couchdb
         image: hyperledger/fabric-couchdb:x86_64-1.1.0
         ports:
-         - containerPort: 5984
+         - containerPort: COUDH_DB_PORT
 
 
       - name: PEER_NAME.ORG.DOMAIN
@@ -28,7 +28,7 @@ spec:
         - name: CORE_LEDGER_STATE_STATEDATABASE
           value: "CouchDB"
         - name: CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS
-          value: "localhost:5984"
+          value: "localhost:COUDH_DB_PORT"
         - name: CORE_VM_ENDPOINT
           value: "unix:///host/var/run/docker.sock"
         - name: CORE_LOGGING_LEVEL
@@ -50,16 +50,16 @@ spec:
         - name: CORE_PEER_ID
           value: PEER_NAME.ORG.DOMAIN
         - name: CORE_PEER_ADDRESS
-          value: PEER_NAME.ORG.DOMAIN:7051
+          value: PEER_NAME.ORG.DOMAIN:PEER_PORT
         - name: CORE_PEER_GOSSIP_EXTERNALENDPOINT
-          value: PEER_NAME.ORG.DOMAIN:7051
+          value: PEER_NAME.ORG.DOMAIN:PEER_PORT
         - name: CORE_PEER_LOCALMSPID
           value: ORGMSP
         workingDir: /opt/gopath/src/github.com/hyperledger/fabric/peer
         ports:
-         - containerPort: 7051
+         - containerPort: PEER_PORT
          - containerPort: 7052
-         - containerPort: 7053
+         - containerPort: PEER_EVENT_PORT
         command: ["peer"]
         args: ["node","start"]
         volumeMounts:
@@ -91,7 +91,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-   namespace: NETWORK_NAME
+   namespace: DOMAIN
    name: PEER_NAME
 spec:
  selector:
@@ -103,8 +103,8 @@ spec:
  ports:
    - name: externale-listen-endpoint
      protocol: TCP
-     port: 7051
-     targetPort: 7051
+     port: PEER_PORT
+     targetPort: PEER_PORT
      nodePort: NODEPORT1
 
    - name: chaincode-listen

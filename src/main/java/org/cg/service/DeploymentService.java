@@ -1,12 +1,12 @@
 package org.cg.service;
 
 import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toList;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMap.Builder;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Resources;
 import java.io.BufferedWriter;
@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.apache.commons.io.FileUtils;
+import java.util.stream.IntStream;
 import org.cg.config.AppConfiguration;
 import org.cg.error.CommandFailedToRunException;
 import org.cg.pojo.NetworkConfig;
@@ -66,13 +66,14 @@ public class DeploymentService {
   public static String DOMAIN_PLACEHOLDER = "DOMAIN";
   public static String ORDERER_NAME_PLACEHOLDER = "ORDERER_NAME";
   public static String ORDERER_PORT_PLACEHOLDER = "ORDERER_PORT";
+  public static String PEER_PORT_PLACEHOLDER = "PEER_PORT";
+  public static String PEER_NAME_PLACEHOLDER = "PEER_NAME";
+  public static String PEER_EVENT_PORT_PLACEHOLDER = "PEER_EVENT_PORT";
   public static String CONNECTION_FILE_NAME_TEMPLATE = "NETWORKNAME-connection-ORG";
   public static String ANCHORPEER_CMD =
       "peer channel update -o ORDERER_HOST:ORDERER_PORT -c CHANNEL_NAME -f ANCHOR_FILE --tls --cafile ORDERER_CA";
   public static String ORDERER_CA_IN_CONTAINER = "/etc/hyperledger/crypto/orderer/tls/ca.crt";
   public static String ANCHOR_FILE_SUFFIX = "anchors.tx";
-  public static String COMMPOSER_FW_DIR =
-      "/usr/local/google/home/chrisge/.nvm/versions/node/v9.11.1/bin/";
   public static String CREATE_CARD_CMD =
       "composer card create -p CONNECTION_JSON -u PeerAdmin -c ADMIN_PEM -k SK_FILE -r PeerAdmin -r ChannelAdmin -f PeerAdmin@NAME.card";
   public static String COMPOSER_IMPORT_CARD_CMD =
@@ -308,11 +309,16 @@ public class DeploymentService {
   public ImmutableMap<String, List<String>> getOrgPeerMap(NetworkConfig config) {
 
     List<OrgConfig> orgConfigList = config.getOrgConfigs();
-    Map<String, List<String>> orgPeerMap = Maps.newHashMap();
+    Builder<String, List<String>> orgPeerMapBuilder = ImmutableMap.builder();
     for (OrgConfig orgConfig : orgConfigList) {
 
+      int num = orgConfig.getNumOfPeers();
+      String org = orgConfig.getOrg();
+      List<String> peers = IntStream.range(0, num).mapToObj(n -> org + "-peer" + n)
+          .collect(toList());
+      orgPeerMapBuilder.put(org, peers);
     }
-
+    return orgPeerMapBuilder.build();
   }
 
 
@@ -542,74 +548,65 @@ public class DeploymentService {
 
   }
 
-  public void createOrdererDeploymentYamlFiles(Map<String, Map<String, String>> orgNameIpMap,
-      NetworkConfig config, Map<String, String> orgDomainPkMap) {
+  public String createOrdererDeploymentYamlFiles(
+      NetworkConfig config) {
     log.info("Creating docker compose files");
 
     try {
       String ordererTemplate = new String(Files.readAllBytes(Paths.get(
           Resources.getResource("k8/fabric_k8_template_orderer.yaml").toURI())));
 
-
-      //create orderer docker compose file
+      //create orderer k8 yaml file
       String orderer =
           ordererTemplate.replaceAll(ORDERER_PORT_PLACEHOLDER, appConfiguration.ORDERER_PORT)
 
-              .replaceAll(DOMAIN_PLACEHOLDER, appConfiguration.DOMAIN).replaceAll(ORDERER_NAME_PLACEHOLDER, config.getOrdererName());
+              .replaceAll(DOMAIN_PLACEHOLDER, appConfiguration.DOMAIN)
+              .replaceAll(ORDERER_NAME_PLACEHOLDER, config.getOrdererName());
 
-
-
-
-      String fileName = String.join("", workingDir, "docker-compose-orderer.yaml");
+      String fileName = String.join("", workingDir, "fabric_k8_orderer.yaml");
       Files.write(Paths.get(fileName), orderer.getBytes(), StandardOpenOption.CREATE);
       appendToFile(scriptFile, "echo copying file " + fileName);
-      copyFileToGcpVm(fileName, PROJECT_VM_DIR + "docker-compose.yaml",
-          config.getOrdererName(), config);
-      copyFileToGcpVm(workingDir + "base.yaml", PROJECT_VM_DIR + "base.yaml",
-          config.getOrdererName(), config);
+      return fileName;
     } catch (Throwable e) {
-      throw new RuntimeException("Cannot create docker compose yaml file ", e);
+      throw new RuntimeException("Cannot create orderer k8 yaml file ", e);
     }
-
-
-      //creating peer docker compose files
-
-      String peerTemplate = new String(Files.readAllBytes(Paths
-          .get(Resources.getResource("template/docker-composetemplate-peer.yaml").toURI())));
-      for (String org : orgs) {
-        for (String peer : orgNameIpMap.get(org).keySet()) {
-          String extraHosts = String
-              .join("", extraHostsMappingByOrg.get(org), ordererHost,
-                  System.lineSeparator());
-          String content = String.join("",
-              peerTemplate.replaceAll("CLI_EXTRA_HOSTS", extraHosts)
-                  .replaceAll("CA_PORT", appConfiguration.CA_PORT),
-              System.lineSeparator(),
-              peerBaseTemplate.replaceAll("PEER_PORT", appConfiguration.PEER_PORT)
-                  .replaceAll("PEER_EVENT_PORT", appConfiguration.PEER_EVENT_PORT)
-                  .replaceAll("PEER_EXTRA_HOSTS", extraHosts))
-              .replaceAll("DOMAIN", appConfiguration.DOMAIN).replaceAll("ORG", org)
-              .replaceAll("PEER_NAME", peer.split("-")[1]).replaceAll("CA_PRIVATE_KEY",
-                  orgDomainPkMap.get(org + "." + appConfiguration.DOMAIN));
-
-          String composeFileName =
-              String.join("", "docker-compose-", org, "-", peer, ".yaml");
-          String fileName = String.join("", workingDir, composeFileName);
-          Files.write(Paths.get(fileName), content.getBytes(), StandardOpenOption.CREATE);
-          appendToFile(scriptFile, "echo copying file " + fileName);
-          copyFileToGcpVm(fileName, PROJECT_VM_DIR + "docker-compose.yaml", peer, config);
-          // appendToFile(scriptFile, "sleep 2");
-          copyFileToGcpVm(workingDir + "base.yaml", PROJECT_VM_DIR + "base.yaml", peer,
-              config);
-        }
-
-
-      }
-
 
 
   }
 
+  public List<String> createPeerDeploymentYamlFiles(
+      NetworkConfig config, ImmutableMap<String, List<String>> orgPeersMap) {
+    List<String> peersYamlFiles = Lists.newArrayList();
+    try {
+      String peerTemplate = new String(Files.readAllBytes(Paths
+          .get(Resources.getResource("k8/fabric_k8_template_peer.yaml").toURI())));
+      //creating peer k8 yaml files
+      for (String org : orgPeersMap.keySet()) {
+        for (String peer : orgPeersMap.get(org)) {
+
+          String content =
+              peerTemplate.replaceAll(PEER_PORT_PLACEHOLDER, appConfiguration.PEER_PORT)
+                  .replaceAll(PEER_EVENT_PORT_PLACEHOLDER, appConfiguration.PEER_EVENT_PORT)
+
+                  .replaceAll(DOMAIN_PLACEHOLDER, appConfiguration.DOMAIN)
+                  .replaceAll(ORG_PLACEHOLDER, org);
+          // .replaceAll(PEER_NAME_PLACEHOLDER, peer).replaceAll("CA_PRIVATE_KEY",
+          //     orgDomainPkMap.get(org + "." + appConfiguration.DOMAIN);
+
+          String yamlFileName =
+              String.join("", "fabric_k8_", peer, ".yaml");
+          String fileName = String.join("", workingDir, yamlFileName);
+          Files.write(Paths.get(fileName), content.getBytes(), StandardOpenOption.CREATE);
+          log.info(yamlFileName + " created.");
+
+        }
+
+
+      }
+    } catch (Throwable e) {
+      throw new RuntimeException("Cannot create peer k8 yaml file ", e);
+    }
+  }
 
   public void setupDocker(Map<String, Map<String, String>> orgNameIpMap, NetworkConfig config) {
     try {

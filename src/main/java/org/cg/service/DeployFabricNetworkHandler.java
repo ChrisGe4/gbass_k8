@@ -53,7 +53,7 @@ public class DeployFabricNetworkHandler {
 
     @PostMapping(value = "/composer", headers = "Accept=application/json")
     public String deployComposer(@RequestBody NetworkConfig config) {
-        service.deployComposer(config, service.getInstanceNameIPMap(config));
+      //  service.deployComposer(config, service.getInstanceNameIPMap(config));
         service.runScript();
         return "succeed";
     }
@@ -77,15 +77,7 @@ public class DeployFabricNetworkHandler {
         return objectMapper.writeValueAsString(config);
     }
 
-    @GetMapping("/list_instances")
-    public String listInstances(@RequestBody NetworkConfig config) {
 
-        Map<String, Map<String, String>> orgNameIpMap = service.getInstanceNameIPMap(config);
-
-        return orgNameIpMap.toString();
-
-
-    }
 
 
 }
