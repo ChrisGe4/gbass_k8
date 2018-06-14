@@ -40,7 +40,7 @@ spec:
        app: cli
     spec:
       containers:
-        - name: cli.ORG.DOMAIN
+        - name: cli.PEER_NAME.ORG.DOMAIN
           image:  hyperledger/fabric-tools:x86_64-1.1.0
           env:
           
@@ -80,13 +80,13 @@ spec:
           #   subPath: chaincode
            - mountPath: /etc/hyperledger/crypto/peer
              name: certificate
-             subPath: $mspPath
+#             subPath: $mspPath
            - mountPath: /etc/hyperledger/artifacts
              name: artifacts
       volumes:
-        - name: artifacts
-          persistentVolumeClaim:
-              claimName: $artifactsName
+#        - name: artifacts
+#          persistentVolumeClaim:
+#              claimName: $artifactsName
         - name: run
           hostPath:
             path: /var/run

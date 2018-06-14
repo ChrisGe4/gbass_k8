@@ -8,14 +8,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
-@Configuration
+// @Configuration
 public class GCPAuthClient {
 
 
-  @Bean
+  // @Bean
   public GoogleCredentials getGoogleCredential() throws IOException, URISyntaxException {
     GoogleCredentials credentials;
     File credentialsPath = new File(Resources.getResource("secrets/hyperledger-poc.json").toURI());

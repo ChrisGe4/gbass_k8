@@ -10,15 +10,13 @@ import org.springframework.stereotype.Component;
 public class AppConfiguration {
 
   // Configurable program variables
-  @Value("${domain:sample.com}")
-  public String DOMAIN = "sample.com";
   @Value("${orderer.port:7050}")
   public String ORDERER_PORT = "7050";
   @Value("${ca.port:7054}")
   public String CA_PORT = "7054";
   @Value("${couchdb.port:5984}")
   public String COUDH_DB_PORT = "5984";
-  @Value("${working.dir:./blockchain/artifacts/}")
+  @Value("${working.dir:~/blockchain/artifacts/}")
   public String WORKING_DIR = "/usr/local/google/home/chrisge/blockchain/artifacts/";
   @Value("${peer.port:7051}")
   public String PEER_PORT = "7051";
