@@ -22,6 +22,8 @@ public class AppConfiguration {
   public String PEER_PORT = "7051";
   @Value("${peer.event.port:7053}")
   public String PEER_EVENT_PORT = "7053";
+  @Value("${peer.chaincode.port:7052}")
+  public String PEER_CHAINCODE_PORT = "7052";
   @Value("${composer.connnection.file:composer_connection}")
   public String COMPOSER_CONNECTION_FILE = "composer_connection";
   @Value("${gcloud.dir:/usr/bin/}")

@@ -58,7 +58,7 @@ spec:
         workingDir: /opt/gopath/src/github.com/hyperledger/fabric/peer
         ports:
          - containerPort: PEER_PORT
-         - containerPort: 7052
+         - containerPort: PEER_CHAINCODE_PORT
          - containerPort: PEER_EVENT_PORT
         command: ["peer"]
         args: ["node","start"]
@@ -105,12 +105,17 @@ spec:
      protocol: TCP
      port: PEER_PORT
      targetPort: PEER_PORT
-     nodePort: NODEPORT1
+     nodePort: NODEPORT_PEER
 
    - name: chaincode-listen
      protocol: TCP
-     port: 7052
-     targetPort: 7052
-     nodePort: NODEPORT2
+     port: PEER_CHAINCODE_PORT
+     targetPort: PEER_CHAINCODE_PORT
+     nodePort: NODEPORT_CHAINCODE
 
+   - name: peer-event-listen
+     protocol: TCP
+     port: PEER_EVENT_PORT
+     targetPort: PEER_EVENT_PORT
+     nodePort: NODEPORT_PEER_EVENT
 ---

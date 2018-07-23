@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -28,6 +29,7 @@ import org.cg.config.AppConfiguration;
 import org.cg.error.CommandFailedToRunException;
 import org.cg.pojo.NetworkConfig;
 import org.cg.pojo.OrgConfig;
+import org.cg.pojo.PeerNodePort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -82,6 +84,16 @@ public class DeploymentService {
   public static String CRYPTO_DIR_PEER = "peerOrganizations/";
   public static String CRYPTO_DIR_ORDERER = "ordererOrganizations/";
   public static String CREATE_FOLDER_CMD = "mkdir -p -m u+x %s";
+  public static final int ORDERER_BASE_NODEPORT = 32000;
+  public static final String NODEPORT_PLACEHOLDER = "NODEPORT";
+  public static final String NODEPORT_PEER_PLACEHOLDER = "NODEPORT_PEER";
+  public static final String NODEPORT_PEER_EVENT_PLACEHOLDER = "NODEPORT_PEER_EVENT";
+  public static final String NODEPORT_PEER_CHAINCODE_PLACEHOLDER = "NODEPORT_CHAINCODE";
+  public static final String PEER_CHAINCODE_PORT_PLACEHOLDER = "NODEPORT_CHAINCODE";
+
+  public static int NODEPORT_FACTOR = 30000;
+  //which also limits the number of peers per org can have
+  public static int NODEPORT_INTERVAL = 100;
   private final ObjectMapper mapper;
   private final AppConfiguration appConfiguration;
   public String cryptoGenCmd;
@@ -403,7 +415,7 @@ public class DeploymentService {
     try {
       appendToFile(scriptFile, "echo copying orderer crypto folder");
       String path = CRYPTO_DIR_ORDERER + config.getDomain();
-      copyFolderToStorage(cryptoPath + path, config.getStorageBucket(), config.getNetworkName());
+      copyFolderToStorage(cryptoPath + path, config.getStorageBucket(), config.getDomain());
 
       //copy ca of peers from other org
       //todo: fuse orderer path to peer
@@ -425,7 +437,7 @@ public class DeploymentService {
           String path = CRYPTO_DIR_PEER + orgDomain;
 
           copyFolderToStorage(cryptoPath + path, config.getStorageBucket(),
-              config.getNetworkName());
+              config.getDomain());
 
         }
       }
@@ -515,7 +527,7 @@ public class DeploymentService {
       String path = workingDir + "channel";
       appendToFile(scriptFile,
           "echo copying channel folder to bucket " + config.getStorageBucket());
-      copyFolderToStorage(path, config.getStorageBucket(), config.getNetworkName());
+      copyFolderToStorage(path, config.getStorageBucket(), config.getDomain());
     } catch (Throwable t) {
       throw new RuntimeException("Cannot write to script file ", t);
     }
@@ -567,7 +579,8 @@ public class DeploymentService {
           ordererTemplate.replaceAll(ORDERER_PORT_PLACEHOLDER, appConfiguration.ORDERER_PORT)
 
               .replaceAll(DOMAIN_PLACEHOLDER, config.getDomain())
-              .replaceAll(ORDERER_NAME_PLACEHOLDER, config.getOrdererName());
+              .replaceAll(ORDERER_NAME_PLACEHOLDER, config.getOrdererName())
+              .replaceAll(NODEPORT_PLACEHOLDER, String.valueOf(getOrdererNodePort(1)));
 
       String fileName = String.join("", workingDir, "fabric_k8_orderer.yaml");
       Files.write(Paths.get(fileName), orderer.getBytes(), StandardOpenOption.CREATE);
@@ -589,13 +602,24 @@ public class DeploymentService {
       String peerTemplate = new String(Files.readAllBytes(Paths
           .get(Resources.getResource("k8/fabric_k8_template_peer.yaml").toURI())));
       //creating peer k8 yaml files
-      for (String org : orgPeersMap.keySet()) {
-        for (String peer : orgPeersMap.get(org)) {
 
+      List<String> orgList = new ArrayList<>(orgPeersMap.keySet());
+
+        for (int i = 0; i < orgList.size(); i++) {
+          String org = orgList.get(i);
+          List<String> peerList = orgPeersMap.get(org);
+          for (int j = 0; j <peerList.size() ; j++) {
+
+          String peer = peerList.get(j);
+          PeerNodePort peerNodePort = getPeerNodePort(i,j);
           String content =
               peerTemplate.replaceAll(PEER_PORT_PLACEHOLDER, appConfiguration.PEER_PORT)
                   .replaceAll(PEER_EVENT_PORT_PLACEHOLDER, appConfiguration.PEER_EVENT_PORT)
+                  .replaceAll(PEER_CHAINCODE_PORT_PLACEHOLDER, appConfiguration.PEER_CHAINCODE_PORT)
                   .replaceAll(PEER_NAME_PLACEHOLDER, peer)
+                  .replaceAll(NODEPORT_PEER_PLACEHOLDER, String.valueOf(peerNodePort.getPeerPort()))
+                  //.replaceAll(NODEPORT_PEER_EVENT_PLACEHOLDER, String.valueOf(peerNodePort.getEventPort()))
+                  .replaceAll(NODEPORT_PEER_CHAINCODE_PLACEHOLDER, String.valueOf(peerNodePort.getChaincodePort()))
                   .replaceAll(DOMAIN_PLACEHOLDER, config.getDomain())
                   .replaceAll(ORG_PLACEHOLDER, org);
           // .replaceAll(PEER_NAME_PLACEHOLDER, peer).replaceAll("CA_PRIVATE_KEY",
@@ -1236,5 +1260,23 @@ public class DeploymentService {
     }
 
   }
+
+  private PeerNodePort getPeerNodePort(int orgIndex, int peerIndex) {
+
+    return new PeerNodePort(calculatePeerNodePort(orgIndex, peerIndex, 1),
+        calculatePeerNodePort(orgIndex, peerIndex, 2));
+        //calculatePeerNodePort(orgIndex, peerIndex, 3));
+
+  }
+
+  private int calculatePeerNodePort(int orgIndex, int peerIndex, int type) {
+    return NODEPORT_FACTOR + orgIndex * NODEPORT_INTERVAL + 2 * peerIndex + type;
+  }
+
+  private int getOrdererNodePort(int ordererIndex) {
+
+    return ORDERER_BASE_NODEPORT + ordererIndex;
+  }
+
 
 }
