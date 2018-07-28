@@ -35,7 +35,6 @@ public class K8DeploymentService {
 
     Storage storage = StorageOptions.newBuilder().setCredentials(googleCredential).build()
         .getService();
-    BigInteger
     // List all your buckets
     System.out.println("My buckets:");
     for (Bucket bucket : storage.list().iterateAll()) {

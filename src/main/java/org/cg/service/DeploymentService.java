@@ -49,7 +49,9 @@ public class DeploymentService {
       + "gcloud compute scp --recurse --project GCP_PROJECT --zone ZONE  PEERNAME:~/FILE DEST";
   public static final String SSH = "bash " + "gcloud compute ssh ";
   public static final String COPY_TO_STORAGE_CMD = "gsutil -m cp -r %s gs://%s";
+
   private static final Logger log = LoggerFactory.getLogger(DeploymentService.class);
+  private static final String COUCHDB_PORT_PLACEHOLDER = "COUDH_DB_PORT";
   public static String ORG_NAMES = "                    - *";
   public static String PROJECT_VM_DIR = "gbaas/";
   public static String CRYPTO_DIR = "crypto-config/";
@@ -87,9 +89,10 @@ public class DeploymentService {
   public static final int ORDERER_BASE_NODEPORT = 32000;
   public static final String NODEPORT_PLACEHOLDER = "NODEPORT";
   public static final String NODEPORT_PEER_PLACEHOLDER = "NODEPORT_PEER";
-  public static final String NODEPORT_PEER_EVENT_PLACEHOLDER = "NODEPORT_PEER_EVENT";
+  public static final String NODEPORT_PEER_EVENT_PLACEHOLDER = "NODEPORT_EVENT";
   public static final String NODEPORT_PEER_CHAINCODE_PLACEHOLDER = "NODEPORT_CHAINCODE";
-  public static final String PEER_CHAINCODE_PORT_PLACEHOLDER = "NODEPORT_CHAINCODE";
+  public static final String PEER_CHAINCODE_PORT_PLACEHOLDER = "PEER_CHAINCODE_PORT";
+  public static final String BUCKET_PLACEHOLDER = "GCS_BUCKET";
 
   public static int NODEPORT_FACTOR = 30000;
   //which also limits the number of peers per org can have
@@ -110,37 +113,38 @@ public class DeploymentService {
 
   }
 
-  // ************For testing purpose****************
-  //
-  // public static void main(String[] args) {
-  //
-  //   ObjectMapper mapper = new ObjectMapper();
-  //   AppConfiguration appConfiguration = new AppConfiguration();
-  //   OrgConfig property1 = new OrgConfig();
-  //   property1.setOrg("google");
-  //   property1.setNumOfPeers(2);
-  //   OrgConfig property2 = new OrgConfig();
-  //   property2.setOrg("boa");
-  //   property2.setNumOfPeers(2);
-  //   NetworkConfig config = new NetworkConfig();
-  //   config.setGcpProjectName("hyperledger-poc");
-  //   config.setOrdererName("orderer-google-boa");
-  //   config.setGcpZoneName("us-east1-b");
-  //   config.setChannelName("common");
-  //   config.setNetworkName("sample-network");
-  //   config.setOrgConfigs(Lists.newArrayList(property1, property2));
-  //   DeploymentService ds = new DeploymentService(mapper, appConfiguration);
-  //
-  //   Map<String, Map<String, String>> orgNameIpMap = ds.deployFabric(config, false, false);
-  //
-  //   //for testing
-  //   //Map<String, Map<String, String>> orgNameIpMap = ds.getInstanceNameIPMap(config);
-  //   //
-  //   // ds.createComposerConnectionFile(orgNameIpMap, config);
-  //   // ds.createComposerAdminCard(orgNameIpMap, config);
-  //   ds.runScript();
-  //
-  // }
+ // ************For testing purpose****************
+
+  public static void main(String[] args) {
+
+    ObjectMapper mapper = new ObjectMapper();
+    AppConfiguration appConfiguration = new AppConfiguration();
+    OrgConfig property1 = new OrgConfig();
+    property1.setOrg("google");
+    property1.setNumOfPeers(2);
+    OrgConfig property2 = new OrgConfig();
+    property2.setOrg("boa");
+    property2.setNumOfPeers(2);
+    NetworkConfig config = new NetworkConfig();
+    config.setGcpProjectName("hyperledger-poc");
+    config.setOrdererName("orderer-google-boa");
+    config.setGcpZoneName("us-east1-b");
+    config.setChannelName("common");
+    config.setDomain("sample-network");
+    config.setStorageBucket("hyperledger-poc");
+    config.setOrgConfigs(Lists.newArrayList(property1, property2));
+    DeploymentService ds = new DeploymentService(mapper, appConfiguration);
+
+    Map<String, List<String>> orgPeerMap = ds.deployFabric(config, false, false);
+
+    //for testing
+    //Map<String, Map<String, String>> orgNameIpMap = ds.getInstanceNameIPMap(config);
+    //
+    // ds.createComposerConnectionFile(orgNameIpMap, config);
+    // ds.createComposerAdminCard(orgNameIpMap, config);
+    ds.runScript();
+
+  }
 
 
   public Map<String, List<String>> deployFabric(NetworkConfig config,
@@ -165,8 +169,8 @@ public class DeploymentService {
     Map<String, String> orgPk = createCryptoFiles(orgPeerMap, config);
     createConfigtxYaml(orgPeerMap, config);
     createConfigtxFiles(orgPeerMap, config);
-    copyCertsToStorage(orgPeerMap, config);
-    copyTxToStorage(config);
+    copyGeneratedFilesToStorage(orgPeerMap, config);
+    // copyTxToStorage(config);
 
     String ordererYamlFile = createOrdererDeploymentYamlFiles(config);
     List<String> peerYamlFiles = createPeerDeploymentYamlFiles(config, orgPeerMap);
@@ -229,10 +233,6 @@ public class DeploymentService {
 
   }
 
-  private void mapWorkingDirToStorage(NetworkConfig config) {
-
-  }
-
   private void createScriptFile(NetworkConfig config) {
     try {
       Files.deleteIfExists(Paths.get(scriptFile));
@@ -247,82 +247,6 @@ public class DeploymentService {
       throw new RuntimeException("Cannot create script file ", t);
     }
   }
-
-  // public void createInstances(NetworkConfig config) {
-  //
-  //   try {
-  //     for (OrgConfig property : config.getOrgConfigs()) {
-  //       for (int i = 0; i < property.getNumOfPeers(); i++) {
-  //         CommandRunner.runCommand(Lists.newArrayList("/bin/bash", "-c",
-  //             appConfiguration.GCLOUD_DIR + CREATE_VM
-  //                 .replaceAll(":PEERNAME", property.getOrg() + PEER_NAME_SUFFIX + i)
-  //                 .replaceAll(":ZONE", config.getGcpZoneName())), log);
-  //       }
-  //     }
-  //     CommandRunner.runCommand(Lists.newArrayList("/bin/bash", "-c",
-  //         appConfiguration.GCLOUD_DIR + CREATE_VM
-  //             .replaceAll(":PEERNAME", config.getOrdererName())
-  //             .replaceAll(":ZONE", config.getGcpZoneName())), log);
-  //   } catch (Throwable t) {
-  //
-  //     throw new CommandFailedToRunException("Cannot create instances", t);
-  //   }
-  // }
-
-  // public Map<String, Map<String, String>> getInstanceNameIPMap(NetworkConfig config) {
-  //   List<String> orgs =
-  //       config.getOrgConfigs().stream().map(OrgConfig::getOrg).collect(Collectors.toList());
-  //   orgs.add(config.getOrdererName());
-  //   Map<String, Map<String, String>> orgNameIpMap = new HashMap<>();
-  //   try {
-  //     List<String> vms =
-  //         CommandRunner.runCommand(appConfiguration.GCLOUD_DIR, LIST_INSTANCES);
-  //
-  //     for (String org : orgs) {
-  //       Map<String, String> nameIpMap = getNameIpMap(vms, org);
-  //       orgNameIpMap.put(org, nameIpMap);
-  //     }
-  //   } catch (Throwable t) {
-  //
-  //     throw new CommandFailedToRunException("Cannot get the list of instances", t);
-  //   }
-  //
-  //   return orgNameIpMap;
-  // }
-  //
-  // private Map<String, String> getNameIpMap(List<String> vms, String org) {
-  //   //order of the list of peers is eg google-peer-0, google-peer-1 ...
-  //   Map<String, String> nameIpMap = new LinkedHashMap<>();
-  //   vms.stream().map(s -> s.split("\\s+"))
-  //       .filter(a -> a[0].startsWith(org) && "RUNNING".equals(a[a.length - 1])).forEach(a -> {
-  //     nameIpMap.put(a[0], a[8]);
-  //   });
-  //   return nameIpMap;
-  // }
-
-  // public void copyInstallScripts(Map<String, Map<String, String>> orgNameIpMap,
-  //     NetworkConfig config) {
-  //   for (String org : orgNameIpMap.keySet()) {
-  //     String domain = String.join(".", org, appConfiguration.DOMAIN);
-  //     for (String instance : orgNameIpMap.get(org).keySet()) {
-  //       try {
-  //         copyFileToGcpVm(workingDir + "init-docker.sh", "init-docker.sh", instance,
-  //             config);
-  //         copyFileToGcpVm(workingDir + "setup.sh", "setup.sh", instance, config);
-  //
-  //         copyFileToGcpVm(workingDir + "install-composer.sh", "install-composer.sh",
-  //             instance, config);
-  //         appendToFile(scriptFile, String
-  //             .join("", SSH, instance, " --zone ", config.getGcpZoneName(),
-  //                 " --command \" chmod u+x init-docker.sh; chmod u+x install-composer.sh; chmod u+x setup.sh\""));
-  //         appendToFile(scriptFile, "sleep 2");
-  //
-  //       } catch (Throwable t) {
-  //         throw new RuntimeException("Cannot write to script file ", t);
-  //       }
-  //     }
-  //   }
-  // }
 
   public ImmutableMap<String, List<String>> getOrgPeerMap(NetworkConfig config) {
 
@@ -358,7 +282,8 @@ public class DeploymentService {
       Files.write(Paths.get(path), ordererTemplate.replace(":PEERS", peersConfig)
               .replaceAll("DOMAIN", config.getDomain()).getBytes(),
           StandardOpenOption.CREATE);
-      copyFileToGcpVm(path, "cryptogen.yaml", config.getOrdererName(), config);
+      //TODO: NOT SURE if this is needed
+      //copyFileToGcpVm(path, "cryptogen.yaml", config.getOrdererName(), config);
 
       log.info("Cryptogen.yaml created");
 
@@ -379,7 +304,7 @@ public class DeploymentService {
       Map<String, String> orgDomainPkMap = new HashMap<>(orgs.size());
 
       for (String org : orgs) {
-        String domain = String.join(".", org, config.getDomain());
+        String domain = String.join("-", org, config.getDomain());
         String path = cryptoPath + "peerOrganizations/" + domain + "/ca/";
         Optional<String> skFile =
             Files.list(Paths.get(path)).map(f -> f.getFileName().toString())
@@ -403,49 +328,48 @@ public class DeploymentService {
   }
 
 
-  public void copyCertsToStorage(Map<String, List<String>> orgPeerMap,
+  public void copyGeneratedFilesToStorage(Map<String, List<String>> orgPeerMap,
       NetworkConfig config) {
 
-    String STORAGE_LOCATION = "pic-test";
 
-    Set<String> orgs = Sets.newHashSet(orgPeerMap.keySet());
-    orgs.remove(config.getOrdererName());
+    appendToFile(scriptFile, "echo copying generated files to storage");
+    copyFolderToStorage(workingDir,config.getStorageBucket(),config.getDomain());
 
-    //orderer
-    try {
-      appendToFile(scriptFile, "echo copying orderer crypto folder");
-      String path = CRYPTO_DIR_ORDERER + config.getDomain();
-      copyFolderToStorage(cryptoPath + path, config.getStorageBucket(), config.getDomain());
-
-      //copy ca of peers from other org
-      //todo: fuse orderer path to peer
-
-    } catch (Throwable t) {
-      throw new RuntimeException(
-          "Cannot write commands of distributing certs to orderer to the script file ", t);
-    }
-
-    //peers
-    try {
-      for (String org : orgs) {
-        for (String instance : orgPeerMap.get(org)) {
-
-          appendToFile(scriptFile, "echo copying crypto folder to peer " + instance);
-
-          String orgDomain = org + "." + config.getDomain() + "/";
-
-          String path = CRYPTO_DIR_PEER + orgDomain;
-
-          copyFolderToStorage(cryptoPath + path, config.getStorageBucket(),
-              config.getDomain());
-
-        }
-      }
-
-    } catch (Throwable t) {
-      throw new RuntimeException(
-          "Cannot write commands of distributing certs to peers to the script file ", t);
-    }
+    // //orderer
+    // try {
+    //   appendToFile(scriptFile, "echo copying orderer crypto folder");
+    //   String path = CRYPTO_DIR_ORDERER + config.getDomain();
+    //   copyFolderToStorage(cryptoPath + path, config.getStorageBucket(), config.getDomain());
+    //
+    //   //copy ca of peers from other org
+    //   //todo: fuse orderer path to peer
+    //
+    // } catch (Throwable t) {
+    //   throw new RuntimeException(
+    //       "Cannot write commands of distributing certs to orderer to the script file ", t);
+    // }
+    //
+    // //peers
+    // try {
+    //   for (String org : orgs) {
+    //     for (String instance : orgPeerMap.get(org)) {
+    //
+    //       appendToFile(scriptFile, "echo copying crypto folder to peer " + instance);
+    //
+    //       String orgDomain = org + "." + config.getDomain() + "/";
+    //
+    //       String path = CRYPTO_DIR_PEER + orgDomain;
+    //
+    //       copyFolderToStorage(cryptoPath + path, config.getStorageBucket(),
+    //           config.getDomain());
+    //
+    //     }
+    //   }
+    //
+    // } catch (Throwable t) {
+    //   throw new RuntimeException(
+    //       "Cannot write commands of distributing certs to peers to the script file ", t);
+    // }
   }
 
 
@@ -476,7 +400,8 @@ public class DeploymentService {
               .replace("CHANNEL_NAME", config.getChannelName());
 
       Files.write(Paths.get(configtxfPath), content.getBytes(), StandardOpenOption.CREATE);
-      copyFileToGcpVm(configtxfPath, "configtx.yaml", config.getOrdererName(), config);
+      //TODO: NOT SURE if this is needed
+      //copyFileToGcpVm(configtxfPath, "configtx.yaml", config.getOrdererName(), config);
 
     } catch (Throwable e) {
       throw new RuntimeException("Cannot create configtx yaml file ", e);
@@ -621,7 +546,8 @@ public class DeploymentService {
                   //.replaceAll(NODEPORT_PEER_EVENT_PLACEHOLDER, String.valueOf(peerNodePort.getEventPort()))
                   .replaceAll(NODEPORT_PEER_CHAINCODE_PLACEHOLDER, String.valueOf(peerNodePort.getChaincodePort()))
                   .replaceAll(DOMAIN_PLACEHOLDER, config.getDomain())
-                  .replaceAll(ORG_PLACEHOLDER, org);
+                  .replaceAll(ORG_PLACEHOLDER, org).replaceAll(BUCKET_PLACEHOLDER,config.getStorageBucket())
+              .replaceAll(COUCHDB_PORT_PLACEHOLDER,appConfiguration.COUDH_DB_PORT);
           // .replaceAll(PEER_NAME_PLACEHOLDER, peer).replaceAll("CA_PRIVATE_KEY",
           //     orgDomainPkMap.get(org + "." + config.getDomain());
 
@@ -697,56 +623,6 @@ public class DeploymentService {
     }
   }
 
-  // public void setupDocker(Map<String, Map<String, String>> orgNameIpMap, NetworkConfig config) {
-  //   try {
-  //     String cmd = " --command \"sh init-docker.sh\"";
-  //
-  //     for (String org : orgNameIpMap.keySet()) {
-  //       for (String instance : orgNameIpMap.get(org).keySet()) {
-  //
-  //         appendToFile(scriptFile,
-  //             String.join("", SSH, instance, " --zone ", config.getGcpZoneName(), cmd));
-  //       }
-  //     }
-  //   } catch (Throwable t) {
-  //     throw new RuntimeException("Cannot write to script file ", t);
-  //   }
-  // }
-
-  // public void setupVm(Map<String, Map<String, String>> orgNameIpMap, NetworkConfig config) {
-  //   try {
-  //     String cmd = " --command \"sh setup.sh\"";
-  //
-  //     for (String org : orgNameIpMap.keySet()) {
-  //       for (String instance : orgNameIpMap.get(org).keySet()) {
-  //
-  //         appendToFile(scriptFile,
-  //             String.join("", SSH, instance, " --zone ", config.getGcpZoneName(), cmd));
-  //       }
-  //     }
-  //   } catch (Throwable t) {
-  //     throw new RuntimeException("Cannot write to script file ", t);
-  //   }
-  // }
-
-  // public void setupComposer(Map<String, Map<String, String>> orgNameIpMap, NetworkConfig config) {
-  //   try {
-  //     String cmd = " --command \"sh install-composer.sh\"";
-  //
-  //     for (String org : orgNameIpMap.keySet()) {
-  //       for (String instance : orgNameIpMap.get(org).keySet()) {
-  //         if (!config.getOrdererName().equals(instance)) {
-  //           appendToFile(scriptFile, String
-  //               .join("", SSH, instance, " --zone ", config.getGcpZoneName(), cmd));
-  //         }
-  //       }
-  //     }
-  //   } catch (Throwable t) {
-  //     throw new RuntimeException("Cannot write to script file ", t);
-  //   }
-  // }
-
-
   public void startOrderer(Map<String, Map<String, String>> orgNameIpMap, NetworkConfig config) {
     String cmd = " --command \" docker-compose -f ./" + PROJECT_VM_DIR
         + "docker-compose.yaml up -d 2>&1\"";
@@ -784,7 +660,7 @@ public class DeploymentService {
         .findFirst().get();
     String instance = (String) orgNameIpMap.get(org).keySet().toArray()[0];
     //todo: make channel name a variable
-    String domain = String.join(".", org, config.getDomain());
+    String domain = String.join("-", org, config.getDomain());
 
     String peerCmd = String
         .join("", "peer channel create -o orderer.", config.getDomain(), ":",
@@ -842,7 +718,7 @@ public class DeploymentService {
     Set<String> orgs = Sets.newHashSet(orgNameIpMap.keySet());
     orgs.remove(config.getOrdererName());
     for (String org : orgs) {
-      String domain = String.join(".", org, config.getDomain());
+      String domain = String.join("-", org, config.getDomain());
 
       for (String peer : orgNameIpMap.get(org).keySet()) {
         String dockerCmd = String
@@ -864,7 +740,7 @@ public class DeploymentService {
     Set<String> orgs = Sets.newHashSet(orgNameIpMap.keySet());
     orgs.remove(config.getOrdererName());
     for (String org : orgs) {
-      String domain = String.join(".", org, config.getDomain());
+      String domain = String.join("-", org, config.getDomain());
 
       for (String peer : orgNameIpMap.get(org).keySet()) {
         String peerCmd = "peer channel join -b " + config.getChannelName() + ".block";
@@ -889,7 +765,7 @@ public class DeploymentService {
     Set<String> orgs = Sets.newHashSet(orgNameIpMap.keySet());
     orgs.remove(config.getOrdererName());
     for (String org : orgs) {
-      String domain = String.join(".", org, config.getDomain());
+      String domain = String.join("-", org, config.getDomain());
 
       for (String peer : orgNameIpMap.get(org).keySet()) {
         if (!peer.contains("peer0")) {
@@ -919,7 +795,7 @@ public class DeploymentService {
     Set<String> orgs = Sets.newHashSet(orgNameIpMap.keySet());
     orgs.remove(config.getOrdererName());
     for (String org : orgs) {
-      String domain = String.join(".", org, config.getDomain());
+      String domain = String.join("-", org, config.getDomain());
 
       for (String peer : orgNameIpMap.get(org).keySet()) {
         String peerCmd = "peer chaincode install -n test -v 1.0 -p chaincode_example02 ";
@@ -1210,11 +1086,11 @@ public class DeploymentService {
 
   }
 
-  public void copyFolderToStorage(String sourceFolder, String bucket, String networkName) {
+  public void copyFolderToStorage(String sourceFolder, String bucket, String domain) {
 
     try {
       appendToFile(scriptFile, String
-          .format(COPY_TO_STORAGE_CMD, sourceFolder, bucket + "/" + networkName));
+          .format(COPY_TO_STORAGE_CMD, sourceFolder, bucket + "/" + domain));
     } catch (Throwable t) {
 
       throw new CommandFailedToRunException(

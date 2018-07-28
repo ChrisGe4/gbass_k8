@@ -30,7 +30,7 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
    namespace: DOMAIN
-   name: cli.ORG.DOMAIN
+   name: cli-ORG-DOMAIN
 spec:
   replicas: 1
   strategy: {}
@@ -40,7 +40,7 @@ spec:
        app: cli
     spec:
       containers:
-        - name: cli.PEER_NAME.ORG.DOMAIN
+        - name: cli-PEER_NAME-ORG-DOMAIN
           image:  hyperledger/fabric-tools:x86_64-1.1.0
           env:
           - name: CORE_PEER_TLS_ENABLED
@@ -91,7 +91,7 @@ spec:
             path: /var/run
          - name: certificate
                  hostPath:
-                   path: hf/crypto-config/peerOrganizations/ORG.DOMAIN/users/Admin@ORG.DOMAIN
+                   path: hf/crypto-config/peerOrganizations/ORG-DOMAIN/users/Admin@ORG.DOMAIN
                    type: Directory
          - name: run
                  hostPath:

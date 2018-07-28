@@ -4,7 +4,7 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   namespace: DOMAIN
-  name: ORDERER_NAME.DOMAIN
+  name: ORDERER_NAME-DOMAIN
 spec:
   replicas: 1
   strategy: {}
@@ -58,7 +58,7 @@ spec:
          #  claimName: nfs
           - name: certificate
             hostPath:
-                  path: hf/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/
+                  path: hf/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer-DOMAIN/
                   type: Directory
            - name: channel
              hostPath:

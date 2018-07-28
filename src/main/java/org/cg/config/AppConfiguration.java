@@ -31,5 +31,4 @@ public class AppConfiguration {
   @Value("${k8.cluster:hyperledger-poc}")
   public String K8_CLUSTER = "hyperledger-poc";
 
-
 }
