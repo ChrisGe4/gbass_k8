@@ -1,7 +1,7 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  namespace: sample-network
+#  namespace: sample-network
   name:	boa-peer0-boa-sample-network
 spec:
   replicas: 1
@@ -28,6 +28,7 @@ spec:
 #                                                                         && apt-get install --yes gcsfuse \
 #                                                                         && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*;
 #                                                                         gcsfuse -o nonempty hyperledger-poc/sample-network /sample-network']
+          imagePullPolicy: Always
           command: ['sh', '-c', 'bash /gcsfuse/setUp.sh']
           securityContext:
              privileged: true
@@ -36,22 +37,53 @@ spec:
                  - SYS_ADMIN
           env:
             - name: DESTINATION_DIR
-              value: "/gcsfuse"
+              value: "/hf"
             - name: FUSE_MOUNT_DIR
-              value: "/gcs/temp"
+              value: "/gcsfuse/temp"
             - name: FUSE_BUCKET_NAME
               value: "hyperledger-poc"
           volumeMounts:
                  - name: certificate
-                   mountPath: /gcsfuse/sample-network/crypto-config/peerOrganizations/boa-sample-network/peers/boa-peer0-boa-sample-network/
+                   mountPath: /hf/test-test-test-test/crypto-config/peerOrganizations/boa-sample-network/peers/boa-peer0-boa-sample-network
                  - name: channel
-                   mountPath: /gcsfuse/sample-network/channel
+                   mountPath: /hf/sample-network/channel
+                 - name: test
+                   mountPath: /hf/test-test-test-test
       containers:
+#      - name: init-myservice
+#        image: "gcr.io/hyperledger-poc/gcsfuse"
+#        imagePullPolicy: Always
+#        command: ['sh']
+##        command: [ "/bin/bash", "-c", "--" ]
+#        args: [ "-c","'bash /gcsfuse/setUp.sh; while true; do sleep 30; done;" ]
+#        securityContext:
+#            privileged: true
+#            capabilities:
+#               add:
+#                 - SYS_ADMIN
+#        env:
+#            - name: DESTINATION_DIR
+#              value: "/hf"
+#            - name: FUSE_MOUNT_DIR
+#              value: "/gcsfuse/temp"
+#            - name: FUSE_BUCKET_NAME
+#              value: "hyperledger-poc"
+#        volumeMounts:
+#                 - name: certificate
+#                   mountPath: /hf/sample-network/crypto-config/peerOrganizations/boa-sample-network/peers/boa-peer0-boa-sample-network
+#                 - name: channel
+#                   mountPath: /hf/sample-network/channel
+#                 - name: test
+#                   mountPath: /hf
       - name: couchdb
         image: hyperledger/fabric-couchdb:x86_64-1.0.0
+#        command: ["/bin/sh"]
+#        args: ["-c","ls /test | echo * ;"]
         ports:
-         - containerPort: 5984
-
+        - containerPort: 5984
+        volumeMounts:
+         - name: test
+           mountPath: /test11
 
       - name: boa-peer0-boa-sample-network
         image: hyperledger/fabric-peer:x86_64-1.0.0
@@ -92,19 +124,19 @@ spec:
          - containerPort: 7052
          - containerPort: 7053
         command: ["/bin/sh"]
-        args: ["-c","ls /etc/hyperledger/crypto/peer | echo * ;"]
+        args: ["-c","ls /etc/hyperledger/crypto/peer | echo ; peer node start"]
 #        securityContext:
 #          privileged: true
 #          capabilities:
 #            add:
 #             - SYS_ADMIN
-        lifecycle:
+#        lifecycle:
 #          postStart:
 #            exec:
 #              command: ["gcsfuse", "-o", "nonempty", "hyperledger-poc/sample-network", "/sample-network"]
-          preStop:
-            exec:
-              command: ["fusermount", "-u", "/gcsfuse"]
+#          preStop:
+#            exec:
+#              command: ["fusermount", "-u", "/gcsfuse"]
         volumeMounts:
          - mountPath: /etc/hyperledger/crypto/peer
            name: certificate
@@ -125,13 +157,15 @@ spec:
 #         hostPath:
 #           path: /gcsfuse/sample-network/channel
          emptyDir: {}
+       - name: test
+         emptyDir: {}
 
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-   namespace: sample-network
+#   namespace: sample-network
    name: boa-peer0
 spec:
  selector:
@@ -145,13 +179,13 @@ spec:
      protocol: TCP
      port: 7051
      targetPort: 7051
-     nodePort: 30101
+     nodePort: 30103
 
    - name: chaincode-listen
      protocol: TCP
      port: 7052
      targetPort: 7052
-     nodePort: 30102
+     nodePort: 30104
 
 #   - name: peer-event-listen
 #     protocol: TCP
