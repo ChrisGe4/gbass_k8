@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.commons.io.FileUtils;
 import org.cg.config.AppConfiguration;
 import org.cg.error.CommandFailedToRunException;
 import org.cg.pojo.NetworkConfig;
@@ -93,6 +94,7 @@ public class DeploymentService {
   public static final String NODEPORT_PEER_CHAINCODE_PLACEHOLDER = "NODEPORT_CHAINCODE";
   public static final String PEER_CHAINCODE_PORT_PLACEHOLDER = "PEER_CHAINCODE_PORT";
   public static final String BUCKET_PLACEHOLDER = "GCS_BUCKET";
+  public static final String GCP_PROJECT_NAME_PLACEHOLDER = "GCP_PROJECT_NAME";
 
   public static int NODEPORT_FACTOR = 30000;
   //which also limits the number of peers per org can have
@@ -113,7 +115,7 @@ public class DeploymentService {
 
   }
 
- // ************For testing purpose****************
+  // ************For testing purpose****************
 
   public static void main(String[] args) {
 
@@ -169,13 +171,14 @@ public class DeploymentService {
     Map<String, String> orgPk = createCryptoFiles(orgPeerMap, config);
     createConfigtxYaml(orgPeerMap, config);
     createConfigtxFiles(orgPeerMap, config);
+    copyChaincode(orgPeerMap, config);
     copyGeneratedFilesToStorage(orgPeerMap, config);
     // copyTxToStorage(config);
 
     String ordererYamlFile = createOrdererDeploymentYamlFiles(config);
     List<String> peerYamlFiles = createPeerDeploymentYamlFiles(config, orgPeerMap);
-    String namespaceYamlFile = createNamespaceDeploymentYamlFiles(config);
-    List<String> cliYamlFiles = createCliDeploymentYamlFiles(config, orgPeerMap);
+    // String namespaceYamlFile = createNamespaceDeploymentYamlFiles(config);
+    // List<String> cliYamlFiles = createCliDeploymentYamlFiles(config, orgPeerMap);
     // createCaServerYaml(orgNameIpMap, config);
 
     // startOrderer(orgNameIpMap, config);
@@ -256,7 +259,7 @@ public class DeploymentService {
 
       int num = orgConfig.getNumOfPeers();
       String org = orgConfig.getOrg();
-      List<String> peers = IntStream.range(0, num).mapToObj(n -> org + "-peer" + n)
+      List<String> peers = IntStream.range(0, num).mapToObj(n -> "peer" + n)
           .collect(toList());
       orgPeerMapBuilder.put(org, peers);
     }
@@ -304,7 +307,7 @@ public class DeploymentService {
       Map<String, String> orgDomainPkMap = new HashMap<>(orgs.size());
 
       for (String org : orgs) {
-        String domain = String.join("-", org, config.getDomain());
+        String domain = String.join(".", org, config.getDomain());
         String path = cryptoPath + "peerOrganizations/" + domain + "/ca/";
         Optional<String> skFile =
             Files.list(Paths.get(path)).map(f -> f.getFileName().toString())
@@ -327,13 +330,24 @@ public class DeploymentService {
     }
   }
 
+  public void copyChaincode(Map<String, List<String>> orgPeerMap,
+      NetworkConfig config) {
+    log.info("Calling distributeChaincode method");
+    try {
+
+      FileUtils.copyDirectory(new File(Resources.getResource("chaincode").toURI()),
+          new File(Paths.get(workingDir, "chaincode").toUri()), false);
+
+    } catch (Throwable t) {
+      throw new RuntimeException("Cannot copy chaincode to from resource", t);
+    }
+  }
 
   public void copyGeneratedFilesToStorage(Map<String, List<String>> orgPeerMap,
       NetworkConfig config) {
 
-
     appendToFile(scriptFile, "echo copying generated files to storage");
-    copyFolderToStorage(workingDir,config.getStorageBucket(),config.getDomain());
+    copyFolderToStorage(workingDir, config.getStorageBucket(), config.getDomain());
 
     // //orderer
     // try {
@@ -505,7 +519,9 @@ public class DeploymentService {
 
               .replaceAll(DOMAIN_PLACEHOLDER, config.getDomain())
               .replaceAll(ORDERER_NAME_PLACEHOLDER, config.getOrdererName())
-              .replaceAll(NODEPORT_PLACEHOLDER, String.valueOf(getOrdererNodePort(1)));
+              .replaceAll(NODEPORT_PLACEHOLDER, String.valueOf(getOrdererNodePort(1)))
+              .replaceAll(GCP_PROJECT_NAME_PLACEHOLDER, config.getGcpProjectName())
+              .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket());
 
       String fileName = String.join("", workingDir, "fabric_k8_orderer.yaml");
       Files.write(Paths.get(fileName), orderer.getBytes(), StandardOpenOption.CREATE);
@@ -530,13 +546,13 @@ public class DeploymentService {
 
       List<String> orgList = new ArrayList<>(orgPeersMap.keySet());
 
-        for (int i = 0; i < orgList.size(); i++) {
-          String org = orgList.get(i);
-          List<String> peerList = orgPeersMap.get(org);
-          for (int j = 0; j <peerList.size() ; j++) {
+      for (int i = 0; i < orgList.size(); i++) {
+        String org = orgList.get(i);
+        List<String> peerList = orgPeersMap.get(org);
+        for (int j = 0; j < peerList.size(); j++) {
 
           String peer = peerList.get(j);
-          PeerNodePort peerNodePort = getPeerNodePort(i,j);
+          PeerNodePort peerNodePort = getPeerNodePort(i, j);
           String content =
               peerTemplate.replaceAll(PEER_PORT_PLACEHOLDER, appConfiguration.PEER_PORT)
                   .replaceAll(PEER_EVENT_PORT_PLACEHOLDER, appConfiguration.PEER_EVENT_PORT)
@@ -544,15 +560,19 @@ public class DeploymentService {
                   .replaceAll(PEER_NAME_PLACEHOLDER, peer)
                   .replaceAll(NODEPORT_PEER_PLACEHOLDER, String.valueOf(peerNodePort.getPeerPort()))
                   //.replaceAll(NODEPORT_PEER_EVENT_PLACEHOLDER, String.valueOf(peerNodePort.getEventPort()))
-                  .replaceAll(NODEPORT_PEER_CHAINCODE_PLACEHOLDER, String.valueOf(peerNodePort.getChaincodePort()))
+                  .replaceAll(NODEPORT_PEER_CHAINCODE_PLACEHOLDER,
+                      String.valueOf(peerNodePort.getChaincodePort()))
                   .replaceAll(DOMAIN_PLACEHOLDER, config.getDomain())
-                  .replaceAll(ORG_PLACEHOLDER, org).replaceAll(BUCKET_PLACEHOLDER,config.getStorageBucket())
-              .replaceAll(COUCHDB_PORT_PLACEHOLDER,appConfiguration.COUDH_DB_PORT);
+                  .replaceAll(ORG_PLACEHOLDER, org)
+                  .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket())
+                  .replaceAll(COUCHDB_PORT_PLACEHOLDER, appConfiguration.COUDH_DB_PORT)
+                  .replaceAll(GCP_PROJECT_NAME_PLACEHOLDER, config.getGcpProjectName())
+                  .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket());
           // .replaceAll(PEER_NAME_PLACEHOLDER, peer).replaceAll("CA_PRIVATE_KEY",
           //     orgDomainPkMap.get(org + "." + config.getDomain());
 
           String yamlFileName =
-              String.join("", "fabric_k8_", peer, ".yaml");
+              String.join("", "fabric_k8_",org,"-", peer, ".yaml");
           String fileName = String.join("", workingDir, yamlFileName);
           Files.write(Paths.get(fileName), content.getBytes(), StandardOpenOption.CREATE);
           log.info(yamlFileName + " created.");
@@ -623,35 +643,6 @@ public class DeploymentService {
     }
   }
 
-  public void startOrderer(Map<String, Map<String, String>> orgNameIpMap, NetworkConfig config) {
-    String cmd = " --command \" docker-compose -f ./" + PROJECT_VM_DIR
-        + "docker-compose.yaml up -d 2>&1\"";
-    appendToFile(scriptFile, String
-        .join("", SSH, config.getOrdererName(), " --zone ", config.getGcpZoneName(), cmd));
-
-
-  }
-
-  public void startContainers(Map<String, Map<String, String>> orgNameIpMap,
-      NetworkConfig config) {
-
-    String cmd = " --command \" docker-compose -f ./" + PROJECT_VM_DIR
-        + "docker-compose.yaml up -d 2>&1\"";
-
-    for (String org : orgNameIpMap.keySet()) {
-      for (String instance : orgNameIpMap.get(org).keySet()) {
-
-        if (instance.equals(config.getOrdererName())) {
-          continue;
-        }
-        appendToFile(scriptFile,
-            String.join("", SSH, instance, " --zone ", config.getGcpZoneName(), cmd));
-      }
-    }
-
-
-  }
-
   public void createChannelBlock(Map<String, Map<String, String>> orgNameIpMap,
       NetworkConfig config) {
     log.info("calling createChannelBlock method");
@@ -660,7 +651,7 @@ public class DeploymentService {
         .findFirst().get();
     String instance = (String) orgNameIpMap.get(org).keySet().toArray()[0];
     //todo: make channel name a variable
-    String domain = String.join("-", org, config.getDomain());
+    String domain = String.join(".", org, config.getDomain());
 
     String peerCmd = String
         .join("", "peer channel create -o orderer.", config.getDomain(), ":",
@@ -718,7 +709,7 @@ public class DeploymentService {
     Set<String> orgs = Sets.newHashSet(orgNameIpMap.keySet());
     orgs.remove(config.getOrdererName());
     for (String org : orgs) {
-      String domain = String.join("-", org, config.getDomain());
+      String domain = String.join(".", org, config.getDomain());
 
       for (String peer : orgNameIpMap.get(org).keySet()) {
         String dockerCmd = String
@@ -740,7 +731,7 @@ public class DeploymentService {
     Set<String> orgs = Sets.newHashSet(orgNameIpMap.keySet());
     orgs.remove(config.getOrdererName());
     for (String org : orgs) {
-      String domain = String.join("-", org, config.getDomain());
+      String domain = String.join(".", org, config.getDomain());
 
       for (String peer : orgNameIpMap.get(org).keySet()) {
         String peerCmd = "peer channel join -b " + config.getChannelName() + ".block";
@@ -765,7 +756,7 @@ public class DeploymentService {
     Set<String> orgs = Sets.newHashSet(orgNameIpMap.keySet());
     orgs.remove(config.getOrdererName());
     for (String org : orgs) {
-      String domain = String.join("-", org, config.getDomain());
+      String domain = String.join(".", org, config.getDomain());
 
       for (String peer : orgNameIpMap.get(org).keySet()) {
         if (!peer.contains("peer0")) {
@@ -1141,7 +1132,7 @@ public class DeploymentService {
 
     return new PeerNodePort(calculatePeerNodePort(orgIndex, peerIndex, 1),
         calculatePeerNodePort(orgIndex, peerIndex, 2));
-        //calculatePeerNodePort(orgIndex, peerIndex, 3));
+    //calculatePeerNodePort(orgIndex, peerIndex, 3));
 
   }
 

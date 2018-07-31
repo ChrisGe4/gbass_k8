@@ -3,7 +3,7 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  namespace: DOMAIN
+#  namespace: DOMAIN
   name: ORDERER_NAME-DOMAIN
 spec:
   replicas: 1
@@ -13,9 +13,36 @@ spec:
       labels:
         app: hyperledger
         role: orderer
-        org: ORG
+        domain: DOMAIN
         orderer-id: ORDERER_NAME
     spec:
+      initContainers:
+      - name: init-myservice
+        image: "gcr.io/GCP_PROJECT_NAME/gcsfuse"
+        imagePullPolicy: Always
+        command: ['sh', '-c', 'bash /gcsfuse/setUp.sh']
+        securityContext:
+           privileged: true
+           capabilities:
+             add:
+               - SYS_ADMIN
+        env:
+          - name: DESTINATION_DIR
+            value: "/DOMAIN"
+          - name: FUSE_MOUNT_DIR
+            value: "/gcsfuse/temp"
+          - name: FUSE_BUCKET_NAME
+            value: "GCS_BUCKET"
+          - name: CRYPTO
+            value: "DOMAIN/crypto-config/ordererOrganizations/DOMAIN"
+          - name: CHANNEL
+            value: "DOMAIN/channel"
+        volumeMounts:
+         - name: certificate
+           mountPath: /DOMAIN/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/
+         - name: channel
+           mountPath: /DOMAIN/channel
+
       containers:
       - name: ORDERER_NAME
         image: hyperledger/fabric-orderer:x86_64-1.1.0
@@ -50,20 +77,14 @@ spec:
          - mountPath: /etc/hyperledger/configtx
            name: channel
       volumes:
-#       - name: certificate
-#         persistentVolumeClaim:
-#             claimName: $pvName
-           #path: /opt/share
-         #persistentVolumeClaim:
-         #  claimName: nfs
-          - name: certificate
-            hostPath:
-                  path: hf/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer-DOMAIN/
-                  type: Directory
-           - name: channel
+           - name: certificate
+             emptyDir: {}
+           - name: run
              hostPath:
-                  path: hf/channel
-                  type: Directory
+               path: /var/run
+               type: Directory
+           - name: channel
+             emptyDir: {}
 
 
 ---
@@ -71,13 +92,13 @@ apiVersion: v1
 kind: Service
 metadata:
   name: ORDERER_NAME
-  namespace: DOMAIN
+#  namespace: DOMAIN
 spec:
  selector:
    app: hyperledger
    role: orderer
    orderer-id: ORDERER_NAME
-   org: ORG
+   domain: DOMAIN
  type: NodePort
  ports:
    - name: listen-endpoint

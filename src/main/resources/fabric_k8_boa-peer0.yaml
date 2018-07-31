@@ -40,15 +40,20 @@ spec:
               value: "/hf"
             - name: FUSE_MOUNT_DIR
               value: "/gcsfuse/temp"
+            - name: CRYPTO
+              value: "sample-network/crypto-config/peerOrganizations/boa-sample-network"
+            - name: CHANNEL
+              value: "sample-network/channel"
             - name: FUSE_BUCKET_NAME
               value: "hyperledger-poc"
+
           volumeMounts:
                  - name: certificate
-                   mountPath: /hf/test-test-test-test/crypto-config/peerOrganizations/boa-sample-network/peers/boa-peer0-boa-sample-network
+                   mountPath: /hf/sample-network/crypto-config/peerOrganizations/boa-sample-network/peers/peer0.boa-sample-network
                  - name: channel
                    mountPath: /hf/sample-network/channel
                  - name: test
-                   mountPath: /hf/test-test-test-test
+                   mountPath: /hf
       containers:
 #      - name: init-myservice
 #        image: "gcr.io/hyperledger-poc/gcsfuse"
@@ -83,7 +88,7 @@ spec:
         - containerPort: 5984
         volumeMounts:
          - name: test
-           mountPath: /test11
+           mountPath: /test1
 
       - name: boa-peer0-boa-sample-network
         image: hyperledger/fabric-peer:x86_64-1.0.0

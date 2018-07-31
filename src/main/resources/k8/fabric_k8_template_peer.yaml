@@ -1,7 +1,7 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  namespace: DOMAIN
+#  namespace: DOMAIN
   name:	PEER_NAME-ORG-DOMAIN
 spec:
   replicas: 1
@@ -17,17 +17,8 @@ spec:
     spec:
      initContainers:
             - name: init-myservice
-              image: "ageapps/k8s-storage-buckets:gcsfuse-init"
-    #          command: ['sh', '-c', 'apt-get update && apt-get install --yes --no-install-recommends \
-    #                                                                           ca-certificates \
-    #                                                                           curl \
-    #                                                                         && echo \"deb http://packages.cloud.google.com/apt gcsfuse-jessie main\" \
-    #                                                                           | tee /etc/apt/sources.list.d/gcsfuse.list \
-    #                                                                         && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add - \
-    #                                                                         && apt-get update \
-    #                                                                         && apt-get install --yes gcsfuse \
-    #                                                                         && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*;
-    #                                                                         gcsfuse -o nonempty hyperledger-poc/sample-network /sample-network']
+              image: "gcr.io/GCP_PROJECT_NAME/gcsfuse"
+              imagePullPolicy: Always
               command: ['sh', '-c', 'bash /gcsfuse/setUp.sh']
               securityContext:
                  privileged: true
@@ -36,16 +27,34 @@ spec:
                      - SYS_ADMIN
               env:
                 - name: DESTINATION_DIR
-                  value: "/sample-network"
+                  value: "/hf"
                 - name: FUSE_MOUNT_DIR
-                  value: "/gcsfuse/buckets/temp"
+                  value: "/gcsfuse/temp"
                 - name: FUSE_BUCKET_NAME
-                  value: "hyperledger-poc/sample-network"
+                  value: "GCS_BUCKET"
+                - name: CRYPTO
+                  value: "DOMAIN/crypto-config/peerOrganizations/ORG.DOMAIN"
+                - name: CHANNEL
+                  value: "DOMAIN/channel"
+                - name: CHAINCODE
+                  value: "DOMAIN/chaincode"
+                - name: ORDERER_TLS
+                  value: "DOMAIN/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/tls"
               volumeMounts:
-                     - name: certificate
-                       mountPath: /sample-network/crypto-config/peerOrganizations/boa-sample-network/peers/boa-peer0-boa-sample-network/
-                     - name: channel
-                       mountPath: /sample-network/channel
+               - name: certificate
+                 mountPath: /hf/DOMAIN/crypto-config/peerOrganizations/ORG.DOMAIN/peers/PEER_NAME.ORG.DOMAIN
+               - name: channel
+                 mountPath: /hf/DOMAIN/channel
+               - mountPath: /DOMAIN
+                 name: artifacts
+               - mountPath: /hf/DOMAIN/chaincode/java
+                 name: chaincode-java
+               - mountPath: /hf/DOMAIN/chaincode/go
+                 name: chaincode-go
+               - mountPath: /hf/DOMAIN/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/tls
+                 name: orderer-tls
+
+
       containers:
       - name: couchdb
         image: hyperledger/fabric-couchdb:x86_64-0.4.7
@@ -91,30 +100,8 @@ spec:
          - containerPort: PEER_PORT
          - containerPort: PEER_CHAINCODE_PORT
          - containerPort: PEER_EVENT_PORT
-#        command: ["peer"]
         command: ["/bin/sh"]
         args: ["-c","peer node start;"]
-#        apt-get update && apt-get install --yes --no-install-recommends \
-#                                          ca-certificates \
-#                                          curl \
-#                                        && echo \"deb http://packages.cloud.google.com/apt gcsfuse-jessie main\" \
-#                                          | tee /etc/apt/sources.list.d/gcsfuse.list \
-#                                        && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add - \
-#                                        && apt-get update \
-#                                        && apt-get install --yes gcsfuse \
-#                                        && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* "]
-        securityContext:
-          privileged: true
-          capabilities:
-            add:
-             - SYS_ADMIN
-        lifecycle:
-          postStart:
-            exec:
-              command: ["gcsfuse", "-o", "nonempty", "GCS_BUCKET/DOMAIN", "/DOMAIN"]
-          preStop:
-            exec:
-              command: ["fusermount", "-u", "/DOMAIN"]
         volumeMounts:
          - mountPath: /etc/hyperledger/crypto/peer
            name: certificate
@@ -122,26 +109,75 @@ spec:
            name: channel
          - mountPath: /host/var/run/
            name: run
+
+      - name: cli-PEER_NAME-ORG-DOMAIN
+        image:  hyperledger/fabric-tools:x86_64-1.1.0
+        env:
+        - name: CORE_PEER_TLS_ENABLED
+          value: "true"
+        - name: CORE_VM_ENDPOINT
+          value: unix:///host/var/run/docker.sock
+        - name: GOPATH
+          value: /opt/gopath
+        - name: CORE_LOGGING_LEVEL
+          value: DEBUG
+        - name: CORE_PEER_LOCALMSPID
+          value: ORGMSP
+        - name: CORE_PEER_MSPCONFIGPATH
+          value: /etc/hyperledger/crypto/peer/msp
+        - name: CORE_PEER_TLS_KEY_FILE
+          value: /etc/hyperledger/crypto/peer/tls/server.key
+        - name: CORE_PEER_TLS_CERT_FILE
+          value: /etc/hyperledger/crypto/peer/tls/server.crt
+        - name: CORE_PEER_TLS_ROOTCERT_FILE
+          value: /etc/hyperledger/crypto/peer/tls/ca.crt
+        - name: CORE_PEER_ID
+          value: PEER_NAME
+        - name: CORE_PEER_ADDRESS
+          value: PEER_NAME-ORG-DOMAIN
+        workingDir: /etc/hyperledger/artifacts
+        command: [ "/bin/bash", "-c", "--" ]
+        args: [ "while true; do sleep 30; done;" ]
+        volumeMounts:
+         - mountPath: /host/var/run/
+           name: run
+         - mountPath: /etc/hyperledger/crypto/peer
+           name: certificate
+         - mountPath: /etc/hyperledger/artifacts
+           name: artifacts
+         - mountPath: /opt/chaincode
+           name: chaincode-java
+         - mountPath: /opt/gopath/src
+           name: chaincode-go
+         - mountPath: /etc/hyperledger/crypto/orderer/tls
+           name: orderer-tls
+
+
+
       volumes:
-             - name: certificate
-      #         hostPath:
-      #           path: /sample-network/crypto-config/peerOrganizations/boa-sample-network/peers/boa-peer0-boa-sample-network/
-               emptyDir: {}
-             - name: run
-               hostPath:
-                 path: /var/run
-                 type: Directory
-             - name: channel
-      #         hostPath:
-      #           path: /sample-network/channel
-               emptyDir: {}
+         - name: certificate
+           emptyDir: {}
+         - name: run
+           hostPath:
+             path: /var/run
+             type: Directory
+         - name: channel
+           emptyDir: {}
+         - name: artifacts
+           emptyDir: {}
+         - name: chaincode-java
+           emptyDir: {}
+         - name: chaincode-go
+           emptyDir: {}
+         - name: orderer-tls
+           emptyDir: {}
        
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-   namespace: DOMAIN
+#   namespace: DOMAIN
    name: PEER_NAME
 spec:
  selector:
