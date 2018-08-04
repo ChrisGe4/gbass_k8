@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 
+
 mkdir -p $FUSE_MOUNT_DIR
 mkdir -p $DESTINATION_DIR/$CHANNEL
 mkdir -p $DESTINATION_DIR/$CRYPTO
 mkdir -p $DESTINATION_DIR/$CHAINCODE
 mkdir -p $DESTINATION_DIR/$ORDERER_TLS
+mkdir -p $FUSE_MOUNT_DIR/$CRYPTO/peers/$PEER_NAME.$ORG
+mkdir -p $FUSE_MOUNT_DIR/$CRYPTO/users/Admin@$ORG
 
 gcsfuse -o allow_other --implicit-dirs $FUSE_BUCKET_NAME $FUSE_MOUNT_DIR
 echo "Mounted succesfully FUSE bucket $FUSE_BUCKET_NAME in $FUSE_MOUNT_DIR"

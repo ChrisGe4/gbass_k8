@@ -1,8 +1,8 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-#  namespace: sample-network
-  name:	boa-peer0-boa-sample-network
+  namespace: boa
+  name:	peer0-boa
 spec:
   replicas: 1
   strategy: {}
@@ -12,86 +12,62 @@ spec:
       labels:
        app: hyperledger
        role: peer
-       peer-id: boa-peer0
+       peer-id: peer0
        org: boa
     spec:
       initContainers:
-        - name: init-myservice
-          image: "gcr.io/hyperledger-poc/gcsfuse"
-#          command: ['sh', '-c', 'apt-get update && apt-get install --yes --no-install-recommends \
-#                                                                           ca-certificates \
-#                                                                           curl \
-#                                                                         && echo \"deb http://packages.cloud.google.com/apt gcsfuse-jessie main\" \
-#                                                                           | tee /etc/apt/sources.list.d/gcsfuse.list \
-#                                                                         && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add - \
-#                                                                         && apt-get update \
-#                                                                         && apt-get install --yes gcsfuse \
-#                                                                         && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*;
-#                                                                         gcsfuse -o nonempty hyperledger-poc/sample-network /sample-network']
-          imagePullPolicy: Always
-          command: ['sh', '-c', 'bash /gcsfuse/setUp.sh']
-          securityContext:
-             privileged: true
-             capabilities:
-               add:
-                 - SYS_ADMIN
-          env:
-            - name: DESTINATION_DIR
-              value: "/hf"
-            - name: FUSE_MOUNT_DIR
-              value: "/gcsfuse/temp"
-            - name: CRYPTO
-              value: "sample-network/crypto-config/peerOrganizations/boa-sample-network"
-            - name: CHANNEL
-              value: "sample-network/channel"
-            - name: FUSE_BUCKET_NAME
-              value: "hyperledger-poc"
+            - name: init-myservice
+              image: "gcr.io/hyperledger-poc/gcsfuse"
+              imagePullPolicy: Always
+              command: ['sh', '-c', 'bash /gcsfuse/setUp.sh']
+              securityContext:
+                 privileged: true
+                 capabilities:
+                   add:
+                     - SYS_ADMIN
+              env:
+                - name: DESTINATION_DIR
+                  value: "/hf"
+                - name: FUSE_MOUNT_DIR
+                  value: "/gcsfuse/temp"
+                - name: FUSE_BUCKET_NAME
+                  value: "hyperledger-poc"
+                - name: CRYPTO
+                  value: "test/crypto-config/peerOrganizations/boa"
+                - name: PEER_NAME
+                  value: "peer0"
+                - name: ORG
+                  value: "boa"
+                - name: CHANNEL
+                  value: "test/channel"
+                - name: CHAINCODE
+                  value: "test/chaincode"
+                - name: ORDERER_TLS
+                  value: "test/crypto-config/ordererOrganizations/test/orderers/orderer.test/tls"
+              volumeMounts:
+               - name: certificate
+                 mountPath: /hf/test/crypto-config/peerOrganizations/boa
+               - name: channel
+                 mountPath: /hf/test/channel
+#               - mountPath: /hf/test
+#                 name: artifacts
+               - mountPath: /hf/test/chaincode/java
+                 name: chaincode-java
+               - mountPath: /hf/test/chaincode/go
+                 name: chaincode-go
+               - mountPath: /hf/test/crypto-config/ordererOrganizations/test/orderers/orderer.test/tls
+                 name: orderer-tls
 
-          volumeMounts:
-                 - name: certificate
-                   mountPath: /hf/sample-network/crypto-config/peerOrganizations/boa-sample-network/peers/peer0.boa-sample-network
-                 - name: channel
-                   mountPath: /hf/sample-network/channel
-                 - name: test
-                   mountPath: /hf
+
       containers:
-#      - name: init-myservice
-#        image: "gcr.io/hyperledger-poc/gcsfuse"
-#        imagePullPolicy: Always
-#        command: ['sh']
-##        command: [ "/bin/bash", "-c", "--" ]
-#        args: [ "-c","'bash /gcsfuse/setUp.sh; while true; do sleep 30; done;" ]
-#        securityContext:
-#            privileged: true
-#            capabilities:
-#               add:
-#                 - SYS_ADMIN
-#        env:
-#            - name: DESTINATION_DIR
-#              value: "/hf"
-#            - name: FUSE_MOUNT_DIR
-#              value: "/gcsfuse/temp"
-#            - name: FUSE_BUCKET_NAME
-#              value: "hyperledger-poc"
-#        volumeMounts:
-#                 - name: certificate
-#                   mountPath: /hf/sample-network/crypto-config/peerOrganizations/boa-sample-network/peers/boa-peer0-boa-sample-network
-#                 - name: channel
-#                   mountPath: /hf/sample-network/channel
-#                 - name: test
-#                   mountPath: /hf
       - name: couchdb
-        image: hyperledger/fabric-couchdb:x86_64-1.0.0
-#        command: ["/bin/sh"]
-#        args: ["-c","ls /test | echo * ;"]
+        image: hyperledger/fabric-couchdb:x86_64-0.4.7
         ports:
-        - containerPort: 5984
-        volumeMounts:
-         - name: test
-           mountPath: /test1
+         - containerPort: 5984
 
-      - name: boa-peer0-boa-sample-network
-        image: hyperledger/fabric-peer:x86_64-1.0.0
+
+      - name: peer0-boa
+        image: hyperledger/fabric-peer:x86_64-1.1.0
         env:
         - name: CORE_LEDGER_STATE_STATEDATABASE
           value: "CouchDB"
@@ -106,7 +82,7 @@ spec:
         - name: CORE_PEER_GOSSIP_USELEADERELECTION
           value: "true"
         - name: CORE_PEER_GOSSIP_boaLEADER
-          value: "false"
+          value: "false" 
         - name: CORE_PEER_PROFILE_ENABLED
           value: "true"
         - name: CORE_PEER_TLS_CERT_FILE
@@ -116,11 +92,11 @@ spec:
         - name: CORE_PEER_TLS_ROOTCERT_FILE
           value: "/etc/hyperledger/crypto/peer/tls/ca.crt"
         - name: CORE_PEER_ID
-          value: boa-peer0-boa-sample-network
+          value: peer0.boa
         - name: CORE_PEER_ADDRESS
-          value: boa-peer0-boa-sample-network:7051
+          value: peer0.boa:7051
         - name: CORE_PEER_GOSSIP_EXTERNALENDPOINT
-          value: boa-peer0-boa-sample-network:7051
+          value: peer0.boa:7051
         - name: CORE_PEER_LOCALMSPID
           value: boaMSP
         workingDir: /opt/gopath/src/github.com/hyperledger/fabric/peer
@@ -129,54 +105,91 @@ spec:
          - containerPort: 7052
          - containerPort: 7053
         command: ["/bin/sh"]
-        args: ["-c","ls /etc/hyperledger/crypto/peer | echo ; peer node start"]
-#        securityContext:
-#          privileged: true
-#          capabilities:
-#            add:
-#             - SYS_ADMIN
-#        lifecycle:
-#          postStart:
-#            exec:
-#              command: ["gcsfuse", "-o", "nonempty", "hyperledger-poc/sample-network", "/sample-network"]
-#          preStop:
-#            exec:
-#              command: ["fusermount", "-u", "/gcsfuse"]
+        args: ["-c","peer node start;"]
         volumeMounts:
          - mountPath: /etc/hyperledger/crypto/peer
            name: certificate
+           subPath: peers/peer0.boa
          - mountPath: /opt/gopath/src/org/peer/channel-artifacts
            name: channel
          - mountPath: /host/var/run/
            name: run
-      volumes:
-       - name: certificate
-#         hostPath:
-#           path: /gcsfuse/sample-network/crypto-config/peerOrganizations/boa-sample-network/peers/boa-peer0-boa-sample-network/
-         emptyDir: {}
-       - name: run
-         hostPath:
-           path: /var/run
-           type: Directory
-       - name: channel
-#         hostPath:
-#           path: /gcsfuse/sample-network/channel
-         emptyDir: {}
-       - name: test
-         emptyDir: {}
 
+      - name: cli-peer0-boa
+        image:  hyperledger/fabric-tools:x86_64-1.1.0
+        env:
+        - name: CORE_PEER_TLS_ENABLED
+          value: "true"
+        - name: CORE_VM_ENDPOINT
+          value: unix:///host/var/run/docker.sock
+        - name: GOPATH
+          value: /opt/gopath
+        - name: CORE_LOGGING_LEVEL
+          value: DEBUG
+        - name: CORE_PEER_LOCALMSPID
+          value: boaMSP
+        - name: CORE_PEER_MSPCONFIGPATH
+          value: /etc/hyperledger/fabric/msp
+#        - name: CORE_PEER_TLS_KEY_FILE
+#          value: /etc/hyperledger/crypto/peer/tls/server.key
+#        - name: CORE_PEER_TLS_CERT_FILE
+#          value: /etc/hyperledger/crypto/peer/tls/server.crt
+#        - name: CORE_PEER_TLS_ROOTCERT_FILE
+#          value: /etc/hyperledger/crypto/peer/tls/ca.crt
+        - name: CORE_PEER_ID
+          value: peer0.boa
+        - name: CORE_PEER_ADDRESS
+          value: peer0.boa:7051
+        workingDir: /opt/gopath/src/org/peer
+        command: [ "/bin/bash", "-c", "--" ]
+        args: [ "while true; do sleep 30; done;" ]
+        volumeMounts:
+         - mountPath: /host/var/run/
+           name: run
+         - mountPath: /etc/hyperledger/fabric/msp
+           name: certificate
+           subPath: users/Admin@org1/msp
+         - mountPath: /opt/gopath/src/org/peer/channel-artifacts
+           name: channel
+         - mountPath: /opt/chaincode
+           name: chaincode-java
+         - mountPath: /opt/gopath/src
+           name: chaincode-go
+         - mountPath: /etc/hyperledger/crypto/orderer/tls
+           name: orderer-tls
+
+
+
+      volumes:
+         - name: certificate
+           emptyDir: {}
+         - name: run
+           hostPath:
+             path: /var/run
+             type: Directory
+         - name: channel
+           emptyDir: {}
+#         - name: artifacts
+#           emptyDir: {}
+         - name: chaincode-java
+           emptyDir: {}
+         - name: chaincode-go
+           emptyDir: {}
+         - name: orderer-tls
+           emptyDir: {}
+       
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-#   namespace: sample-network
-   name: boa-peer0
+   namespace: boa
+   name: peer0
 spec:
  selector:
    app: hyperledger
    role: peer
-   peer-id: boa-peer0
+   peer-id: peer0
    org: boa
  type: NodePort
  ports:
@@ -184,17 +197,12 @@ spec:
      protocol: TCP
      port: 7051
      targetPort: 7051
-     nodePort: 30103
+     nodePort: 30101
 
    - name: chaincode-listen
      protocol: TCP
      port: 7052
      targetPort: 7052
-     nodePort: 30104
+     nodePort: 30102
 
-#   - name: peer-event-listen
-#     protocol: TCP
-#     port: 7053
-#     targetPort: 7053
-#     nodePort: NODEPORT_EVENT
 ---
