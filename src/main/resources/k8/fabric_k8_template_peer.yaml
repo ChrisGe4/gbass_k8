@@ -34,6 +34,10 @@ spec:
                   value: "GCS_BUCKET"
                 - name: CRYPTO
                   value: "DOMAIN/crypto-config/peerOrganizations/ORG"
+                - name: PEER
+                  value: "PEER_NAME"
+                - name: ORG
+                  value: "ORG"
                 - name: CHANNEL
                   value: "DOMAIN/channel"
                 - name: CHAINCODE
@@ -42,7 +46,7 @@ spec:
                   value: "DOMAIN/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/tls"
               volumeMounts:
                - name: certificate
-                 mountPath: /hf/DOMAIN/crypto-config/peerOrganizations/ORG/peers/PEER_NAME.ORG
+                 mountPath: /hf/DOMAIN/crypto-config/peerOrganizations/ORG
                - name: channel
                  mountPath: /hf/DOMAIN/channel
                - mountPath: /hf/DOMAIN
@@ -63,7 +67,7 @@ spec:
 
 
       - name: PEER_NAME-ORG
-        image: hyperledger/fabric-peer:x86_64-1.0.0
+        image: hyperledger/fabric-peer:x86_64-1.1.0
         env:
         - name: CORE_LEDGER_STATE_STATEDATABASE
           value: "CouchDB"
@@ -105,6 +109,7 @@ spec:
         volumeMounts:
          - mountPath: /etc/hyperledger/crypto/peer
            name: certificate
+           subPath: peers/PEER_NAME.ORG
          - mountPath: /opt/gopath/src/org/peer/channel-artifacts
            name: channel
          - mountPath: /host/var/run/
@@ -125,12 +130,12 @@ spec:
           value: ORGMSP
         - name: CORE_PEER_MSPCONFIGPATH
           value: /etc/hyperledger/crypto/peer/msp
-        - name: CORE_PEER_TLS_KEY_FILE
-          value: /etc/hyperledger/crypto/peer/tls/server.key
-        - name: CORE_PEER_TLS_CERT_FILE
-          value: /etc/hyperledger/crypto/peer/tls/server.crt
-        - name: CORE_PEER_TLS_ROOTCERT_FILE
-          value: /etc/hyperledger/crypto/peer/tls/ca.crt
+#        - name: CORE_PEER_TLS_KEY_FILE
+#          value: /etc/hyperledger/crypto/peer/tls/server.key
+#        - name: CORE_PEER_TLS_CERT_FILE
+#          value: /etc/hyperledger/crypto/peer/tls/server.crt
+#        - name: CORE_PEER_TLS_ROOTCERT_FILE
+#          value: /etc/hyperledger/crypto/peer/tls/ca.crt
         - name: CORE_PEER_ID
           value: PEER_NAME.ORG
         - name: CORE_PEER_ADDRESS
@@ -143,6 +148,7 @@ spec:
            name: run
          - mountPath: /etc/hyperledger/crypto/peer
            name: certificate
+           subPath: users/Admin@ORG/msp
          - mountPath: /etc/hyperledger/artifacts
            name: artifacts
          - mountPath: /opt/chaincode
