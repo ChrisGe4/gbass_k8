@@ -19,6 +19,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -62,9 +63,9 @@ public class DeploymentService {
   public static String DOCKER_CMD =
       "docker-compose -f ./gbaas/docker-compose.yaml run CLI bash -c \\\"COMMAND\\\"";
   public static String MSP_SUFFIX = "MSP";
-  public static String PEER_CA_FILE = "peerOrganizations/ORG.DOMAIN/peers/peer0.ORG.DOMAIN/tls/";
+  public static String PEER_CA_FILE = "peerOrganizations/ORG.DOMAIN/peers/peer0.ORG/tls/";
   public static String CRYPTO_FOLDER_FOR_COMPOSER =
-      PROJECT_VM_DIR + CRYPTO_DIR + "peerOrganizations/ORG.DOMAIN/users/Admin@ORG.DOMAIN/msp/";
+      PROJECT_VM_DIR + CRYPTO_DIR + "peerOrganizations/ORG.DOMAIN/users/Admin@ORG/msp/";
   public static String ORG_PLACEHOLDER = "ORG";
   public static String DOMAIN_PLACEHOLDER = "DOMAIN";
   public static String ORDERER_NAME_PLACEHOLDER = "ORDERER_NAME";
@@ -132,7 +133,7 @@ public class DeploymentService {
     config.setOrdererName("orderer-google-boa");
     config.setGcpZoneName("us-east1-b");
     config.setChannelName("common");
-    config.setDomain("sample-network");
+    config.setDomain("test");
     config.setStorageBucket("hyperledger-poc");
     config.setOrgConfigs(Lists.newArrayList(property1, property2));
     DeploymentService ds = new DeploymentService(mapper, appConfiguration);
@@ -177,7 +178,7 @@ public class DeploymentService {
 
     String ordererYamlFile = createOrdererDeploymentYamlFiles(config);
     List<String> peerYamlFiles = createPeerDeploymentYamlFiles(config, orgPeerMap);
-    // String namespaceYamlFile = createNamespaceDeploymentYamlFiles(config);
+    createNamespaceDeploymentYamlFiles(config, orgPeerMap);
     // List<String> cliYamlFiles = createCliDeploymentYamlFiles(config, orgPeerMap);
     // createCaServerYaml(orgNameIpMap, config);
 
@@ -307,15 +308,15 @@ public class DeploymentService {
       Map<String, String> orgDomainPkMap = new HashMap<>(orgs.size());
 
       for (String org : orgs) {
-        String domain = String.join(".", org, config.getDomain());
-        String path = cryptoPath + "peerOrganizations/" + domain + "/ca/";
+       // String domain = String.join(".", org, config.getDomain());
+        String path = cryptoPath + "peerOrganizations/" + org + "/ca/";
         Optional<String> skFile =
             Files.list(Paths.get(path)).map(f -> f.getFileName().toString())
                 .filter(p -> p.endsWith("_sk"))
                 //.map(f -> f.substring(0, f.indexOf('_')))
                 .findFirst();
         if (skFile.isPresent()) {
-          orgDomainPkMap.put(domain, skFile.get());
+          orgDomainPkMap.put(org, skFile.get());
         } else {
           throw new RuntimeException("Cannot file ca files ");
         }
@@ -572,7 +573,7 @@ public class DeploymentService {
           //     orgDomainPkMap.get(org + "." + config.getDomain());
 
           String yamlFileName =
-              String.join("", "fabric_k8_",org,"-", peer, ".yaml");
+              String.join("", "fabric_k8_", org, "-", peer, ".yaml");
           String fileName = String.join("", workingDir, yamlFileName);
           Files.write(Paths.get(fileName), content.getBytes(), StandardOpenOption.CREATE);
           log.info(yamlFileName + " created.");
@@ -586,21 +587,26 @@ public class DeploymentService {
   }
 
 
-  public String createNamespaceDeploymentYamlFiles(
-      NetworkConfig config) {
+  public void createNamespaceDeploymentYamlFiles(
+      NetworkConfig config, Map<String, List<String>> orgPeersMap) {
     log.info("Creating namespace yaml files");
 
     try {
-      String ordererTemplate = new String(Files.readAllBytes(Paths.get(
+      String namespaceTemplate = new String(Files.readAllBytes(Paths.get(
           Resources.getResource("k8/fabric_k8_template_namespace.yaml").toURI())));
 
-      //create orderer k8 yaml file
-      String orderer = ordererTemplate.replaceAll(DOMAIN_PLACEHOLDER, config.getDomain());
+      Set<String> orgs = new HashSet<>(orgPeersMap.keySet());
+      orgs.add(config.getDomain());
 
-      String fileName = String.join("", workingDir, "fabric_k8_namespace.yaml");
-      Files.write(Paths.get(fileName), orderer.getBytes(), StandardOpenOption.CREATE);
-      appendToFile(scriptFile, "echo copying file " + fileName);
-      return fileName;
+      for (String org : orgs) {
+
+        //create orderer k8 yaml file
+        String namespace = namespaceTemplate.replaceAll(ORG_PLACEHOLDER, org);
+
+        String fileName = String.join("", workingDir, org, "_namespace.yaml");
+        Files.write(Paths.get(fileName), namespace.getBytes(), StandardOpenOption.CREATE);
+        appendToFile(scriptFile, "echo copying file " + fileName);
+      }
     } catch (Throwable e) {
       throw new RuntimeException("Cannot create namespace k8 yaml file ", e);
     }
@@ -651,7 +657,7 @@ public class DeploymentService {
         .findFirst().get();
     String instance = (String) orgNameIpMap.get(org).keySet().toArray()[0];
     //todo: make channel name a variable
-    String domain = String.join(".", org, config.getDomain());
+    //String domain = String.join(".", org, config.getDomain());
 
     String peerCmd = String
         .join("", "peer channel create -o orderer.", config.getDomain(), ":",
@@ -659,7 +665,7 @@ public class DeploymentService {
             CONTAINER_WORKING_DIR, "channel/", config.getChannelName(), ".tx --tls --cafile ",
             ORDERER_CA_IN_CONTAINER);
 
-    String dockerCmd = DOCKER_CMD.replace("CLI", "cli." + domain).replace("COMMAND", peerCmd);
+    String dockerCmd = DOCKER_CMD.replace("CLI", "cli." + org).replace("COMMAND", peerCmd);
     String cmd = String
         .join("", SSH, instance, " --zone ", config.getGcpZoneName(), " --command \"",
             dockerCmd, "\"");
@@ -668,7 +674,7 @@ public class DeploymentService {
     appendToFile(scriptFile, "echo " + config.getChannelName() + ".block created");
     appendToFile(scriptFile, "sleep 2");
 
-    dockerCmd = String.join("", "docker cp ", "cli." + domain, ":", CONTAINER_WORKING_DIR,
+    dockerCmd = String.join("", "docker cp ", "cli." + org, ":", CONTAINER_WORKING_DIR,
         config.getChannelName(), ".block ~/");
     cmd = String.join("", SSH, instance, " --zone ", config.getGcpZoneName(), " --command \"",
         dockerCmd, "\"");
@@ -709,11 +715,11 @@ public class DeploymentService {
     Set<String> orgs = Sets.newHashSet(orgNameIpMap.keySet());
     orgs.remove(config.getOrdererName());
     for (String org : orgs) {
-      String domain = String.join(".", org, config.getDomain());
+      //String domain = String.join(".", org, config.getDomain());
 
       for (String peer : orgNameIpMap.get(org).keySet()) {
         String dockerCmd = String
-            .join("", "docker cp ~/", config.getChannelName(), ".block", " cli." + domain,
+            .join("", "docker cp ~/", config.getChannelName(), ".block", " cli." + org,
                 ":", CONTAINER_WORKING_DIR);
         String cmd = String
             .join("", SSH, peer, " --zone ", config.getGcpZoneName(), " --command \"",
@@ -756,7 +762,7 @@ public class DeploymentService {
     Set<String> orgs = Sets.newHashSet(orgNameIpMap.keySet());
     orgs.remove(config.getOrdererName());
     for (String org : orgs) {
-      String domain = String.join(".", org, config.getDomain());
+   //   String domain = String.join(".", org, config.getDomain());
 
       for (String peer : orgNameIpMap.get(org).keySet()) {
         if (!peer.contains("peer0")) {
@@ -769,7 +775,7 @@ public class DeploymentService {
                 .replace("ANCHOR_FILE", "channel/" + org + MSP_SUFFIX + ANCHOR_FILE_SUFFIX)
                 .replace("ORDERER_CA", ORDERER_CA_IN_CONTAINER);
         String dockerCmd =
-            DOCKER_CMD.replace("CLI", "cli." + domain).replace("COMMAND", updateAnchorCmd);
+            DOCKER_CMD.replace("CLI", "cli." + org).replace("COMMAND", updateAnchorCmd);
         String cmd = String
             .join("", SSH, peer, " --zone ", config.getGcpZoneName(), " --command \"",
                 dockerCmd, "\"");
@@ -786,12 +792,12 @@ public class DeploymentService {
     Set<String> orgs = Sets.newHashSet(orgNameIpMap.keySet());
     orgs.remove(config.getOrdererName());
     for (String org : orgs) {
-      String domain = String.join("-", org, config.getDomain());
+  //    String domain = String.join("-", org, config.getDomain());
 
       for (String peer : orgNameIpMap.get(org).keySet()) {
         String peerCmd = "peer chaincode install -n test -v 1.0 -p chaincode_example02 ";
         String dockerCmd =
-            DOCKER_CMD.replace("CLI", "cli." + domain).replace("COMMAND", peerCmd);
+            DOCKER_CMD.replace("CLI", "cli." + org).replace("COMMAND", peerCmd);
         String cmd = String
             .join("", SSH, peer, " --zone ", config.getGcpZoneName(), " --command \"",
                 dockerCmd, "\"");

@@ -7,11 +7,11 @@
         # ID to load the MSP definition as
         ID: ORGMSP
 
-        MSPDir: crypto-config/peerOrganizations/ORG.DOMAIN/msp
+        MSPDir: crypto-config/peerOrganizations/ORG/msp
 
         AnchorPeers:
             # AnchorPeers defines the location of peers which can be used
             # for cross org gossip communication.  Note, this value is only
             # encoded in the genesis block in the Application section context
-            - Host: peer0-ORG-DOMAIN
+            - Host: peer0.ORG
               Port: 7051

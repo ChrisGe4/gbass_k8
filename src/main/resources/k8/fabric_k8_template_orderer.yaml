@@ -3,7 +3,7 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-#  namespace: DOMAIN
+  namespace: DOMAIN
   name: ORDERER_NAME-DOMAIN
 spec:
   replicas: 1
@@ -28,7 +28,7 @@ spec:
                - SYS_ADMIN
         env:
           - name: DESTINATION_DIR
-            value: "/DOMAIN"
+            value: "/hf"
           - name: FUSE_MOUNT_DIR
             value: "/gcsfuse/temp"
           - name: FUSE_BUCKET_NAME
@@ -39,9 +39,9 @@ spec:
             value: "DOMAIN/channel"
         volumeMounts:
          - name: certificate
-           mountPath: /DOMAIN/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/
+           mountPath: /hf/DOMAIN/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/
          - name: channel
-           mountPath: /DOMAIN/channel
+           mountPath: /hf/DOMAIN/channel
 
       containers:
       - name: ORDERER_NAME
@@ -91,14 +91,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: ORDERER_NAME
-#  namespace: DOMAIN
+  name: orderer
+  namespace: DOMAIN
 spec:
  selector:
    app: hyperledger
    role: orderer
-   orderer-id: ORDERER_NAME
    domain: DOMAIN
+   orderer-id: ORDERER_NAME
  type: NodePort
  ports:
    - name: listen-endpoint

@@ -1,8 +1,8 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-#  namespace: DOMAIN
-  name:	PEER_NAME-ORG-DOMAIN
+  namespace: ORG
+  name:	PEER_NAME-ORG
 spec:
   replicas: 1
   strategy: {}
@@ -15,7 +15,7 @@ spec:
        peer-id: PEER_NAME
        org: ORG
     spec:
-     initContainers:
+      initContainers:
             - name: init-myservice
               image: "gcr.io/GCP_PROJECT_NAME/gcsfuse"
               imagePullPolicy: Always
@@ -33,19 +33,19 @@ spec:
                 - name: FUSE_BUCKET_NAME
                   value: "GCS_BUCKET"
                 - name: CRYPTO
-                  value: "DOMAIN/crypto-config/peerOrganizations/ORG.DOMAIN"
+                  value: "DOMAIN/crypto-config/peerOrganizations/ORG"
                 - name: CHANNEL
                   value: "DOMAIN/channel"
                 - name: CHAINCODE
                   value: "DOMAIN/chaincode"
                 - name: ORDERER_TLS
-                  value: "DOMAIN/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/tls"
+                  value: "DOMAIN/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/tls"
               volumeMounts:
                - name: certificate
-                 mountPath: /hf/DOMAIN/crypto-config/peerOrganizations/ORG.DOMAIN/peers/PEER_NAME.ORG.DOMAIN
+                 mountPath: /hf/DOMAIN/crypto-config/peerOrganizations/ORG/peers/PEER_NAME.ORG
                - name: channel
                  mountPath: /hf/DOMAIN/channel
-               - mountPath: /DOMAIN
+               - mountPath: /hf/DOMAIN
                  name: artifacts
                - mountPath: /hf/DOMAIN/chaincode/java
                  name: chaincode-java
@@ -62,7 +62,7 @@ spec:
          - containerPort: COUDH_DB_PORT
 
 
-      - name: PEER_NAME-ORG-DOMAIN
+      - name: PEER_NAME-ORG
         image: hyperledger/fabric-peer:x86_64-1.0.0
         env:
         - name: CORE_LEDGER_STATE_STATEDATABASE
@@ -88,11 +88,11 @@ spec:
         - name: CORE_PEER_TLS_ROOTCERT_FILE
           value: "/etc/hyperledger/crypto/peer/tls/ca.crt"
         - name: CORE_PEER_ID
-          value: PEER_NAME-ORG-DOMAIN
+          value: PEER_NAME.ORG
         - name: CORE_PEER_ADDRESS
-          value: PEER_NAME-ORG-DOMAIN:PEER_PORT
+          value: PEER_NAME.ORG:PEER_PORT
         - name: CORE_PEER_GOSSIP_EXTERNALENDPOINT
-          value: PEER_NAME-ORG-DOMAIN:PEER_PORT
+          value: PEER_NAME.ORG:PEER_PORT
         - name: CORE_PEER_LOCALMSPID
           value: ORGMSP
         workingDir: /opt/gopath/src/github.com/hyperledger/fabric/peer
@@ -110,7 +110,7 @@ spec:
          - mountPath: /host/var/run/
            name: run
 
-      - name: cli-PEER_NAME-ORG-DOMAIN
+      - name: cli-PEER_NAME-ORG
         image:  hyperledger/fabric-tools:x86_64-1.1.0
         env:
         - name: CORE_PEER_TLS_ENABLED
@@ -132,9 +132,9 @@ spec:
         - name: CORE_PEER_TLS_ROOTCERT_FILE
           value: /etc/hyperledger/crypto/peer/tls/ca.crt
         - name: CORE_PEER_ID
-          value: PEER_NAME
+          value: PEER_NAME.ORG
         - name: CORE_PEER_ADDRESS
-          value: PEER_NAME-ORG-DOMAIN
+          value: PEER_NAME.ORG:PEER_PORT
         workingDir: /etc/hyperledger/artifacts
         command: [ "/bin/bash", "-c", "--" ]
         args: [ "while true; do sleep 30; done;" ]
@@ -177,7 +177,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-#   namespace: DOMAIN
+   namespace: ORG
    name: PEER_NAME
 spec:
  selector:

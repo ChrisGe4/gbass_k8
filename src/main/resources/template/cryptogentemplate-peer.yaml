@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 #PeerOrgs:
   - Name: ORG
-    Domain: ORG.DOMAIN
+    Domain: ORG
     CA:
        Hostname: ca # implicitly ca.ORG.example.com
     Template:
