@@ -29,7 +29,7 @@ spec:
                 - name: DESTINATION_DIR
                   value: "/hf"
                 - name: FUSE_MOUNT_DIR
-                  value: "/gcsfuse/temp"
+                  value: "/gcsfuse/tmp"
                 - name: FUSE_BUCKET_NAME
                   value: "hyperledger-poc"
                 - name: CRYPTO
@@ -38,6 +38,8 @@ spec:
                   value: "peer0"
                 - name: ORG
                   value: "boa"
+                - name: ADMIN_USER
+                  value: "Admin"
                 - name: CHANNEL
                   value: "test/channel"
                 - name: CHAINCODE
@@ -61,13 +63,13 @@ spec:
 
       containers:
       - name: couchdb
-        image: hyperledger/fabric-couchdb:x86_64-0.4.7
+        image: hyperledger/fabric-couchdb:0.4.10
         ports:
          - containerPort: 5984
 
 
       - name: peer0-boa
-        image: hyperledger/fabric-peer:x86_64-1.1.0
+        image: hyperledger/fabric-peer:1.2.0
         env:
         - name: CORE_LEDGER_STATE_STATEDATABASE
           value: "CouchDB"
@@ -82,7 +84,7 @@ spec:
         - name: CORE_PEER_GOSSIP_USELEADERELECTION
           value: "true"
         - name: CORE_PEER_GOSSIP_boaLEADER
-          value: "false" 
+          value: "false"
         - name: CORE_PEER_PROFILE_ENABLED
           value: "true"
         - name: CORE_PEER_TLS_CERT_FILE
@@ -93,12 +95,14 @@ spec:
           value: "/etc/hyperledger/crypto/peer/tls/ca.crt"
         - name: CORE_PEER_ID
           value: peer0.boa
-        - name: CORE_PEER_ADDRESS
-          value: peer0.boa:7051
         - name: CORE_PEER_GOSSIP_EXTERNALENDPOINT
           value: peer0.boa:7051
         - name: CORE_PEER_LOCALMSPID
           value: boaMSP
+        - name: CORE_PEER_PROFILE_ENABLED
+          value: "true"
+        - name: ORDERER_URL
+          value: orderer.test:7050
         workingDir: /opt/gopath/src/github.com/hyperledger/fabric/peer
         ports:
          - containerPort: 7051
@@ -116,7 +120,7 @@ spec:
            name: run
 
       - name: cli-peer0-boa
-        image:  hyperledger/fabric-tools:x86_64-1.1.0
+        image:  hyperledger/fabric-tools:1.2.0
         env:
         - name: CORE_PEER_TLS_ENABLED
           value: "true"
@@ -134,21 +138,24 @@ spec:
 #          value: /etc/hyperledger/crypto/peer/tls/server.key
 #        - name: CORE_PEER_TLS_CERT_FILE
 #          value: /etc/hyperledger/crypto/peer/tls/server.crt
-#        - name: CORE_PEER_TLS_ROOTCERT_FILE
-#          value: /etc/hyperledger/crypto/peer/tls/ca.crt
+        - name: CORE_PEER_TLS_ROOTCERT_FILE
+          value: /etc/hyperledger/crypto/peer/tls/ca.crt
         - name: CORE_PEER_ID
           value: peer0.boa
         - name: CORE_PEER_ADDRESS
           value: peer0.boa:7051
-        workingDir: /opt/gopath/src/org/peer
+        workingDir: /opt/gopath/src/org/peer/channel-artifacts
         command: [ "/bin/bash", "-c", "--" ]
-        args: [ "while true; do sleep 30; done;" ]
+        args: [ "while true; do sleep 29; done;" ]
         volumeMounts:
          - mountPath: /host/var/run/
            name: run
          - mountPath: /etc/hyperledger/fabric/msp
            name: certificate
-           subPath: users/Admin@org1/msp
+           subPath: users/Admin@boa/msp
+         - mountPath: /etc/hyperledger/crypto/peer/tls
+           name: certificate
+           subPath: peers/peer0.boa/tls
          - mountPath: /opt/gopath/src/org/peer/channel-artifacts
            name: channel
          - mountPath: /opt/chaincode
@@ -177,7 +184,7 @@ spec:
            emptyDir: {}
          - name: orderer-tls
            emptyDir: {}
-       
+
 
 ---
 apiVersion: v1
@@ -204,5 +211,9 @@ spec:
      port: 7052
      targetPort: 7052
      nodePort: 30102
-
+   - name: peer-event-listen
+     protocol: TCP
+     port: 7053
+     targetPort: 7053
+     nodePort: 30103
 ---

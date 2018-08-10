@@ -4,8 +4,9 @@
 #PeerOrgs:
   - Name: ORG
     Domain: ORG
-    CA:
-       Hostname: ca # implicitly ca.ORG.example.com
+#    CA:
+#       Hostname: ca # implicitly ca.ORG.example.com
+    EnableNodeOUs: true
     Template:
       Count: COUNT
       SANS:

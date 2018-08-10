@@ -36,8 +36,10 @@ spec:
                   value: "DOMAIN/crypto-config/peerOrganizations/ORG"
                 - name: PEER
                   value: "PEER_NAME"
-                - name: ORG
+                - name: ORG_NAME
                   value: "ORG"
+                - name: ADMIN_USER_NAME
+                  value: "ADMIN_USER"
                 - name: CHANNEL
                   value: "DOMAIN/channel"
                 - name: CHAINCODE
@@ -49,25 +51,25 @@ spec:
                  mountPath: /hf/DOMAIN/crypto-config/peerOrganizations/ORG
                - name: channel
                  mountPath: /hf/DOMAIN/channel
-               - mountPath: /hf/DOMAIN
-                 name: artifacts
+#               - mountPath: /hf/DOMAIN
+#                 name: artifacts
                - mountPath: /hf/DOMAIN/chaincode/java
                  name: chaincode-java
                - mountPath: /hf/DOMAIN/chaincode/go
                  name: chaincode-go
-               - mountPath: /hf/DOMAIN/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/tls
+               - mountPath: /hf/DOMAIN/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/tls
                  name: orderer-tls
 
 
       containers:
       - name: couchdb
-        image: hyperledger/fabric-couchdb:x86_64-0.4.7
+        image: hyperledger/fabric-couchdb:0.4.10
         ports:
          - containerPort: COUDH_DB_PORT
 
 
       - name: PEER_NAME-ORG
-        image: hyperledger/fabric-peer:x86_64-1.1.0
+        image: hyperledger/fabric-peer:1.2.0
         env:
         - name: CORE_LEDGER_STATE_STATEDATABASE
           value: "CouchDB"
@@ -91,10 +93,10 @@ spec:
           value: "/etc/hyperledger/crypto/peer/tls/server.key"
         - name: CORE_PEER_TLS_ROOTCERT_FILE
           value: "/etc/hyperledger/crypto/peer/tls/ca.crt"
+        - name: CORE_PEER_MSPCONFIGPATH
+          value: /etc/hyperledger/fabric/msp
         - name: CORE_PEER_ID
           value: PEER_NAME.ORG
-        - name: CORE_PEER_ADDRESS
-          value: PEER_NAME.ORG:PEER_PORT
         - name: CORE_PEER_GOSSIP_EXTERNALENDPOINT
           value: PEER_NAME.ORG:PEER_PORT
         - name: CORE_PEER_LOCALMSPID
@@ -116,7 +118,7 @@ spec:
            name: run
 
       - name: cli-PEER_NAME-ORG
-        image:  hyperledger/fabric-tools:x86_64-1.1.0
+        image:  hyperledger/fabric-tools:1.2.0
         env:
         - name: CORE_PEER_TLS_ENABLED
           value: "true"
@@ -129,28 +131,31 @@ spec:
         - name: CORE_PEER_LOCALMSPID
           value: ORGMSP
         - name: CORE_PEER_MSPCONFIGPATH
-          value: /etc/hyperledger/crypto/peer/msp
+          value: /etc/hyperledger/fabric/msp
 #        - name: CORE_PEER_TLS_KEY_FILE
 #          value: /etc/hyperledger/crypto/peer/tls/server.key
 #        - name: CORE_PEER_TLS_CERT_FILE
 #          value: /etc/hyperledger/crypto/peer/tls/server.crt
-#        - name: CORE_PEER_TLS_ROOTCERT_FILE
-#          value: /etc/hyperledger/crypto/peer/tls/ca.crt
+        - name: CORE_PEER_TLS_ROOTCERT_FILE
+          value: /etc/hyperledger/crypto/peer/tls/ca.crt
         - name: CORE_PEER_ID
           value: PEER_NAME.ORG
         - name: CORE_PEER_ADDRESS
           value: PEER_NAME.ORG:PEER_PORT
-        workingDir: /etc/hyperledger/artifacts
+        workingDir: /opt/gopath/src/org/peer/channel-artifacts
         command: [ "/bin/bash", "-c", "--" ]
         args: [ "while true; do sleep 30; done;" ]
         volumeMounts:
          - mountPath: /host/var/run/
            name: run
-         - mountPath: /etc/hyperledger/crypto/peer
+         - mountPath: /etc/hyperledger/fabric/msp
            name: certificate
            subPath: users/Admin@ORG/msp
-         - mountPath: /etc/hyperledger/artifacts
-           name: artifacts
+         - mountPath: /etc/hyperledger/crypto/peer/tls
+           name: certificate
+           subPath: peers/PEER_NAME.ORG/tls
+         - mountPath: /opt/gopath/src/org/peer/channel-artifacts
+           name: channel
          - mountPath: /opt/chaincode
            name: chaincode-java
          - mountPath: /opt/gopath/src
@@ -169,8 +174,8 @@ spec:
              type: Directory
          - name: channel
            emptyDir: {}
-         - name: artifacts
-           emptyDir: {}
+#         - name: artifacts
+#           emptyDir: {}
          - name: chaincode-java
            emptyDir: {}
          - name: chaincode-go
@@ -205,9 +210,9 @@ spec:
      targetPort: PEER_CHAINCODE_PORT
      nodePort: NODEPORT_CHAINCODE
 
-#   - name: peer-event-listen
-#     protocol: TCP
-#     port: PEER_EVENT_PORT
-#     targetPort: PEER_EVENT_PORT
-#     nodePort: NODEPORT_EVENT
+   - name: peer-event-listen
+     protocol: TCP
+     port: PEER_EVENT_PORT
+     targetPort: PEER_EVENT_PORT
+     nodePort: NODEPORT_EVENT
 ---

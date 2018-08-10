@@ -96,6 +96,7 @@ public class DeploymentService {
   public static final String PEER_CHAINCODE_PORT_PLACEHOLDER = "PEER_CHAINCODE_PORT";
   public static final String BUCKET_PLACEHOLDER = "GCS_BUCKET";
   public static final String GCP_PROJECT_NAME_PLACEHOLDER = "GCP_PROJECT_NAME";
+  public static final String ADMIN_USER_PLACEHOLDER = "ADMIN_USER";
 
   public static int NODEPORT_FACTOR = 30000;
   //which also limits the number of peers per org can have
@@ -174,11 +175,10 @@ public class DeploymentService {
     createConfigtxFiles(orgPeerMap, config);
     copyChaincode(orgPeerMap, config);
     copyGeneratedFilesToStorage(orgPeerMap, config);
-    // copyTxToStorage(config);
 
-    String ordererYamlFile = createOrdererDeploymentYamlFiles(config);
+   String ordererYamlFile = createOrdererDeploymentYamlFiles(config);
     List<String> peerYamlFiles = createPeerDeploymentYamlFiles(config, orgPeerMap);
-    createNamespaceDeploymentYamlFiles(config, orgPeerMap);
+   // createNamespaceDeploymentYamlFiles(config, orgPeerMap);
     // List<String> cliYamlFiles = createCliDeploymentYamlFiles(config, orgPeerMap);
     // createCaServerYaml(orgNameIpMap, config);
 
@@ -308,7 +308,7 @@ public class DeploymentService {
       Map<String, String> orgDomainPkMap = new HashMap<>(orgs.size());
 
       for (String org : orgs) {
-       // String domain = String.join(".", org, config.getDomain());
+        // String domain = String.join(".", org, config.getDomain());
         String path = cryptoPath + "peerOrganizations/" + org + "/ca/";
         Optional<String> skFile =
             Files.list(Paths.get(path)).map(f -> f.getFileName().toString())
@@ -560,15 +560,18 @@ public class DeploymentService {
                   .replaceAll(PEER_CHAINCODE_PORT_PLACEHOLDER, appConfiguration.PEER_CHAINCODE_PORT)
                   .replaceAll(PEER_NAME_PLACEHOLDER, peer)
                   .replaceAll(NODEPORT_PEER_PLACEHOLDER, String.valueOf(peerNodePort.getPeerPort()))
-                  //.replaceAll(NODEPORT_PEER_EVENT_PLACEHOLDER, String.valueOf(peerNodePort.getEventPort()))
+                  .replaceAll(NODEPORT_PEER_EVENT_PLACEHOLDER,
+                      String.valueOf(peerNodePort.getEventPort()))
                   .replaceAll(NODEPORT_PEER_CHAINCODE_PLACEHOLDER,
                       String.valueOf(peerNodePort.getChaincodePort()))
                   .replaceAll(DOMAIN_PLACEHOLDER, config.getDomain())
-                  .replaceAll(ORG_PLACEHOLDER, org)
+                  .replaceAll("\\b"+ORG_PLACEHOLDER+"\\b", org)
                   .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket())
                   .replaceAll(COUCHDB_PORT_PLACEHOLDER, appConfiguration.COUDH_DB_PORT)
                   .replaceAll(GCP_PROJECT_NAME_PLACEHOLDER, config.getGcpProjectName())
-                  .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket());
+                  .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket())
+                  //todo: hardcode for now
+                  .replaceAll("\\b"+ADMIN_USER_PLACEHOLDER+"\\b", "Admin");
           // .replaceAll(PEER_NAME_PLACEHOLDER, peer).replaceAll("CA_PRIVATE_KEY",
           //     orgDomainPkMap.get(org + "." + config.getDomain());
 
@@ -762,7 +765,7 @@ public class DeploymentService {
     Set<String> orgs = Sets.newHashSet(orgNameIpMap.keySet());
     orgs.remove(config.getOrdererName());
     for (String org : orgs) {
-   //   String domain = String.join(".", org, config.getDomain());
+      //   String domain = String.join(".", org, config.getDomain());
 
       for (String peer : orgNameIpMap.get(org).keySet()) {
         if (!peer.contains("peer0")) {
@@ -792,7 +795,7 @@ public class DeploymentService {
     Set<String> orgs = Sets.newHashSet(orgNameIpMap.keySet());
     orgs.remove(config.getOrdererName());
     for (String org : orgs) {
-  //    String domain = String.join("-", org, config.getDomain());
+      //    String domain = String.join("-", org, config.getDomain());
 
       for (String peer : orgNameIpMap.get(org).keySet()) {
         String peerCmd = "peer chaincode install -n test -v 1.0 -p chaincode_example02 ";
@@ -1136,8 +1139,9 @@ public class DeploymentService {
 
   private PeerNodePort getPeerNodePort(int orgIndex, int peerIndex) {
 
-    return new PeerNodePort(calculatePeerNodePort(orgIndex, peerIndex, 1),
-        calculatePeerNodePort(orgIndex, peerIndex, 2));
+    return new PeerNodePort(calculatePeerNodePort(orgIndex, peerIndex, 1)
+        , calculatePeerNodePort(orgIndex, peerIndex, 2),
+        calculatePeerNodePort(orgIndex, peerIndex, 3));
     //calculatePeerNodePort(orgIndex, peerIndex, 3));
 
   }

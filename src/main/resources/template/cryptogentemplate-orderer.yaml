@@ -8,7 +8,6 @@ OrdererOrgs:
   # ---------------------------------------------------------------------------
   - Name: Orderer
     Domain: DOMAIN
-
     Specs:
       - Hostname: orderer
 
