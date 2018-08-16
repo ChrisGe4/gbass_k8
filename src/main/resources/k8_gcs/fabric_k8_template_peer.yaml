@@ -15,6 +15,51 @@ spec:
        peer-id: PEER_NAME
        org: ORGNIZATION
     spec:
+      initContainers:
+            - name: init-myservice
+              image: "gcr.io/GCP_PROJECT_NAME/gcsfuse"
+              imagePullPolicy: Always
+              command: ['sh', '-c', 'bash /gcsfuse/setUp.sh']
+              securityContext:
+                 privileged: true
+                 capabilities:
+                   add:
+                     - SYS_ADMIN
+              env:
+                - name: DESTINATION_DIR
+                  value: "/hf"
+                - name: FUSE_MOUNT_DIR
+                  value: "/gcsfuse/temp"
+                - name: FUSE_BUCKET_NAME
+                  value: "GCS_BUCKET"
+                - name: CRYPTO
+                  value: "DOMAIN/crypto-config/peerOrganizations/ORGNIZATION"
+                - name: PEER
+                  value: "PEER_NAME"
+                - name: PEER_CATEGORY
+                  value: "ORGNIZATION"
+                - name: USER_NAME
+                  value: "ADMIN_USER"
+                - name: CHANNEL
+                  value: "DOMAIN/channel"
+                - name: CHAINCODE
+                  value: "DOMAIN/chaincode"
+                - name: ORDERER_TLS
+                  value: "DOMAIN/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/tls"
+              volumeMounts:
+               - name: certificate
+                 mountPath: /hf/DOMAIN/crypto-config/peerOrganizations/ORGNIZATION
+               - name: channel
+                 mountPath: /hf/DOMAIN/channel
+#               - mountPath: /hf/DOMAIN
+#                 name: artifacts
+               - mountPath: /hf/DOMAIN/chaincode/java
+                 name: chaincode-java
+               - mountPath: /hf/DOMAIN/chaincode/go
+                 name: chaincode-go
+               - mountPath: /hf/DOMAIN/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/tls
+                 name: orderer-tls
+
 
       containers:
       - name: couchdb
@@ -71,16 +116,14 @@ spec:
         args: ["-c","peer node start;"]
         volumeMounts:
          - mountPath: /etc/hyperledger/crypto/peer
-           name: artifacts
-           subPath: crypto-config/peerOrganizations/ORGNIZATION/peers/PEER_NAME.ORGNIZATION
+           name: certificate
+           subPath: peers/PEER_NAME.ORGNIZATION
          - mountPath: /opt/gopath/src/org/peer/channel-artifacts
-           name: artifacts
-           subPath: channel
+           name: channel
          - mountPath: /host/var/run/
            name: run
-         - mountPath: /etc/hyperledger/crypto/orderer
-           name: artifacts
-           subPath: crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN
+         - mountPath: /etc/hyperledger/crypto/orderer/tls
+           name: orderer-tls
 
       - name: cli
         image:  hyperledger/fabric-tools
@@ -113,37 +156,38 @@ spec:
         command: [ "/bin/bash", "-c", "--" ]
         args: [ "while true; do sleep 30; done;" ]
         volumeMounts:
-          - mountPath: /host/var/run/
-            name: run
-
-          - mountPath: /etc/hyperledger/crypto/peer
-            name: artifacts
-            subPath: crypto-config/peerOrganizations/ORGNIZATION
-          - mountPath: /opt/gopath/src/org/peer/channel-artifacts
-            name: artifacts
-            subPath: channel
-
-          - mountPath: /etc/hyperledger/crypto/orderer
-            name: artifacts
-            subPath: crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN
-          - mountPath: /opt/chaincode
-            name: artifacts
-            subPath: chaincode/java
-
-          - mountPath: /opt/gopath/src
-            name: artifacts
-            subPath: chaincode/go
+         - mountPath: /host/var/run/
+           name: run
+         - mountPath: /etc/hyperledger/crypto/peer
+           name: certificate
+         - mountPath: /opt/gopath/src/org/peer/channel-artifacts
+           name: channel
+         - mountPath: /opt/chaincode
+           name: chaincode-java
+         - mountPath: /opt/gopath/src
+           name: chaincode-go
+         - mountPath: /etc/hyperledger/crypto/orderer/tls
+           name: orderer-tls
 
 
 
-        volumes:
-           - name: artifacts
-             persistentVolumeClaim:
-               claimName: org2-pv
-           - name: run
-             hostPath:
-               path: /var/run
-               type: Directory
+      volumes:
+         - name: certificate
+           emptyDir: {}
+         - name: run
+           hostPath:
+             path: /var/run
+             type: Directory
+         - name: channel
+           emptyDir: {}
+#         - name: artifacts
+#           emptyDir: {}
+         - name: chaincode-java
+           emptyDir: {}
+         - name: chaincode-go
+           emptyDir: {}
+         - name: orderer-tls
+           emptyDir: {}
        
 
 ---

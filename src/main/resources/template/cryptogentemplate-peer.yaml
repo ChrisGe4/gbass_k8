@@ -4,13 +4,15 @@
 #PeerOrgs:
   - Name: ORG
     Domain: ORG
-#    CA:
-#       Hostname: ca # implicitly ca.ORG.example.com
+    CA:
+      Country: US
+      Province: California
+      Locality: San Francisco
     EnableNodeOUs: true
     Template:
       Count: COUNT
-      SANS:
-        - "localhost"
+#      SANS:
+#        - "localhost"
     # ---------------------------------------------------------------------------
     # "Users"
     # ---------------------------------------------------------------------------

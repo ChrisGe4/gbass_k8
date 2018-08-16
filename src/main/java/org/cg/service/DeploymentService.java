@@ -66,7 +66,7 @@ public class DeploymentService {
   public static String PEER_CA_FILE = "peerOrganizations/ORG.DOMAIN/peers/peer0.ORG/tls/";
   public static String CRYPTO_FOLDER_FOR_COMPOSER =
       PROJECT_VM_DIR + CRYPTO_DIR + "peerOrganizations/ORG.DOMAIN/users/Admin@ORG/msp/";
-  public static String ORG_PLACEHOLDER = "ORG";
+  public static String ORG_PLACEHOLDER = "ORGNIZATION";
   public static String DOMAIN_PLACEHOLDER = "DOMAIN";
   public static String ORDERER_NAME_PLACEHOLDER = "ORDERER_NAME";
   public static String ORDERER_PORT_PLACEHOLDER = "ORDERER_PORT";
@@ -108,6 +108,7 @@ public class DeploymentService {
   private String scriptFile;
   private String cryptoPath;
   private String composerPath;
+  private String idemixPath;
 
 
   @Autowired
@@ -124,16 +125,16 @@ public class DeploymentService {
     ObjectMapper mapper = new ObjectMapper();
     AppConfiguration appConfiguration = new AppConfiguration();
     OrgConfig property1 = new OrgConfig();
-    property1.setOrg("google");
+    property1.setOrg("org1");
     property1.setNumOfPeers(2);
     OrgConfig property2 = new OrgConfig();
-    property2.setOrg("boa");
+    property2.setOrg("org2");
     property2.setNumOfPeers(2);
     NetworkConfig config = new NetworkConfig();
     config.setGcpProjectName("hyperledger-poc");
-    config.setOrdererName("orderer-google-boa");
+    config.setOrdererName("orderer");
     config.setGcpZoneName("us-east1-b");
-    config.setChannelName("common");
+    config.setChannelName("test");
     config.setDomain("test");
     config.setStorageBucket("hyperledger-poc");
     config.setOrgConfigs(Lists.newArrayList(property1, property2));
@@ -175,10 +176,10 @@ public class DeploymentService {
     createConfigtxFiles(orgPeerMap, config);
     copyChaincode(orgPeerMap, config);
     copyGeneratedFilesToStorage(orgPeerMap, config);
-
-   String ordererYamlFile = createOrdererDeploymentYamlFiles(config);
+    //
+    String ordererYamlFile = createOrdererDeploymentYamlFiles(config);
     List<String> peerYamlFiles = createPeerDeploymentYamlFiles(config, orgPeerMap);
-   // createNamespaceDeploymentYamlFiles(config, orgPeerMap);
+    createNamespaceDeploymentYamlFiles(config, orgPeerMap);
     // List<String> cliYamlFiles = createCliDeploymentYamlFiles(config, orgPeerMap);
     // createCaServerYaml(orgNameIpMap, config);
 
@@ -214,6 +215,9 @@ public class DeploymentService {
         + workingDir + "cryptogen.yaml";
     scriptFile = workingDir + "script.sh";
     cryptoPath = workingDir + CRYPTO_DIR;
+    idemixPath = cryptoPath + "idemix";
+    // idemixIssuerKeysCmd = "~/bin/idemixgen ca-keygen";
+    // idemixSignerKeysCmd = "~/bin/idemixgen -u OU1 -e OU1 -r 1";
 
   }
 
@@ -438,7 +442,7 @@ public class DeploymentService {
           config.getChannelName());
       appendToFile(scriptFile, String
           .join("", "~/bin/configtxgen -profile OrdererGenesis -outputBlock ", dir,
-              "genesis.block"));
+              "genesis.block", " -channelID ", config.getDomain(), "-orderer-syschan "));
       appendToFile(scriptFile, String
           .join("", "~/bin/configtxgen -profile ", config.getChannelName(),
               " -outputCreateChannelTx ", dir, config.getChannelName(), ".tx -channelID ",
@@ -512,7 +516,7 @@ public class DeploymentService {
 
     try {
       String ordererTemplate = new String(Files.readAllBytes(Paths.get(
-          Resources.getResource("k8/fabric_k8_template_orderer.yaml").toURI())));
+          Resources.getResource("k8_gcs/fabric_k8_template_orderer.yaml").toURI())));
 
       //create orderer k8 yaml file
       String orderer =
@@ -542,7 +546,7 @@ public class DeploymentService {
 
     try {
       String peerTemplate = new String(Files.readAllBytes(Paths
-          .get(Resources.getResource("k8/fabric_k8_template_peer.yaml").toURI())));
+          .get(Resources.getResource("k8_gcs/fabric_k8_template_peer.yaml").toURI())));
       //creating peer k8 yaml files
 
       List<String> orgList = new ArrayList<>(orgPeersMap.keySet());
@@ -565,13 +569,13 @@ public class DeploymentService {
                   .replaceAll(NODEPORT_PEER_CHAINCODE_PLACEHOLDER,
                       String.valueOf(peerNodePort.getChaincodePort()))
                   .replaceAll(DOMAIN_PLACEHOLDER, config.getDomain())
-                  .replaceAll("\\b"+ORG_PLACEHOLDER+"\\b", org)
+                  .replaceAll(ORG_PLACEHOLDER, org)
                   .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket())
                   .replaceAll(COUCHDB_PORT_PLACEHOLDER, appConfiguration.COUDH_DB_PORT)
                   .replaceAll(GCP_PROJECT_NAME_PLACEHOLDER, config.getGcpProjectName())
                   .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket())
                   //todo: hardcode for now
-                  .replaceAll("\\b"+ADMIN_USER_PLACEHOLDER+"\\b", "Admin");
+                  .replaceAll(ADMIN_USER_PLACEHOLDER, "Admin");
           // .replaceAll(PEER_NAME_PLACEHOLDER, peer).replaceAll("CA_PRIVATE_KEY",
           //     orgDomainPkMap.get(org + "." + config.getDomain());
 
@@ -596,7 +600,7 @@ public class DeploymentService {
 
     try {
       String namespaceTemplate = new String(Files.readAllBytes(Paths.get(
-          Resources.getResource("k8/fabric_k8_template_namespace.yaml").toURI())));
+          Resources.getResource("k8_gcs/fabric_k8_template_namespace.yaml").toURI())));
 
       Set<String> orgs = new HashSet<>(orgPeersMap.keySet());
       orgs.add(config.getDomain());
@@ -625,7 +629,7 @@ public class DeploymentService {
 
     try {
       String peerTemplate = new String(Files.readAllBytes(Paths
-          .get(Resources.getResource("k8/fabric_k8_template_cli.yaml").toURI())));
+          .get(Resources.getResource("k8_gcs/fabric_k8_template_cli.yaml").toURI())));
 
       for (String org : orgPeersMap.keySet()) {
         for (String peer : orgPeersMap.get(org)) {

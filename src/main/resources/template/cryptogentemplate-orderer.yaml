@@ -8,6 +8,11 @@ OrdererOrgs:
   # ---------------------------------------------------------------------------
   - Name: Orderer
     Domain: DOMAIN
+    EnableNodeOUs: true
+    CA:
+      Country: US
+      Province: California
+      Locality: San Francisco
     Specs:
       - Hostname: orderer
 

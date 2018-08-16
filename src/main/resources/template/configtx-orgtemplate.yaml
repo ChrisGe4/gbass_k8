@@ -15,7 +15,7 @@
         Policies:
             Readers:
                 Type: Signature
-                Rule: "OR('ORGMSP.admin', 'ORGMSP.peer')"
+                Rule: "OR('ORGMSP.admin', 'ORGMSP.peer','ORGMSP.client')"
             Writers:
                 Type: Signature
                 Rule: "OR('ORGMSP.admin', 'ORGMSP.client')"

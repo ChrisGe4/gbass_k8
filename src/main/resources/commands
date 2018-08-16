@@ -1,1 +1,19 @@
 curl -sSL http://bit.ly/2ysbOFE | bash -s 1.1.0
+
+
+peer channel create -o orderer.test:7050 -c test -f /opt/gopath/src/org/peer/channel-artifacts/test.tx --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
+
+
+peer channel fetch newest -o orderer.test:7050 -c test --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
+
+
+
+peer channel fetch 0 0_block.pb -o orderer.test:7050 -c "test-orderer-syschan" --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
+
+
+
+peer chaincode install -n mycc -v 1.0 -p chaincode_example02
+
+
+
+peer chaincode instantiate -o orderer.test:7050 --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt -C test -n mycc -v 1.0 -c '{"Args":["init","a","100","b","200"]}'
