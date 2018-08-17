@@ -14,6 +14,8 @@ import java.util.List;
     "ordererName",
     "channelName",
     "storageBucket",
+    "nfsIp",
+    "useGcs",
     "orgConfigs"
 })
 public class NetworkConfig {
@@ -30,6 +32,10 @@ public class NetworkConfig {
   private String channelName;
   @JsonProperty("storageBucket")
   private String storageBucket;
+  @JsonProperty("nfsIp")
+  private String nfsIp;
+  @JsonProperty(value = "useGcs", defaultValue = "false")
+  private boolean useGcs;
   @JsonProperty("orgConfigs")
   private List<OrgConfig> orgConfigs = null;
 
@@ -104,4 +110,23 @@ public class NetworkConfig {
     this.orgConfigs = orgConfigs;
   }
 
+  @JsonProperty("nfsIp")
+  public String getNfsIp() {
+    return nfsIp;
+  }
+
+  @JsonProperty("nfsIp")
+  public void setNfsIp(String nfsIp) {
+    this.nfsIp = nfsIp;
+  }
+
+  @JsonProperty("useGcs")
+  public boolean getUseGcs() {
+    return useGcs;
+  }
+
+  @JsonProperty("useGcs")
+  public void setUseGcs(boolean useGcs) {
+    this.useGcs = useGcs;
+  }
 }

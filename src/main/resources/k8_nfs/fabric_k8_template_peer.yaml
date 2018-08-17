@@ -72,15 +72,15 @@ spec:
         volumeMounts:
          - mountPath: /etc/hyperledger/crypto/peer
            name: artifacts
-           subPath: crypto-config/peerOrganizations/ORGNIZATION/peers/PEER_NAME.ORGNIZATION
+           subPath:  DOMAIN/crypto-config/peerOrganizations/ORGNIZATION/peers/PEER_NAME.ORGNIZATION
          - mountPath: /opt/gopath/src/org/peer/channel-artifacts
            name: artifacts
-           subPath: channel
+           subPath:  DOMAIN/channel
          - mountPath: /host/var/run/
            name: run
          - mountPath: /etc/hyperledger/crypto/orderer
            name: artifacts
-           subPath: crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN
+           subPath:  DOMAIN/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN
 
       - name: cli
         image:  hyperledger/fabric-tools
@@ -118,32 +118,32 @@ spec:
 
           - mountPath: /etc/hyperledger/crypto/peer
             name: artifacts
-            subPath: crypto-config/peerOrganizations/ORGNIZATION
+            subPath: DOMAIN/crypto-config/peerOrganizations/ORGNIZATION
           - mountPath: /opt/gopath/src/org/peer/channel-artifacts
             name: artifacts
-            subPath: channel
+            subPath: DOMAIN/channel
 
           - mountPath: /etc/hyperledger/crypto/orderer
             name: artifacts
-            subPath: crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN
+            subPath: DOMAIN/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN
           - mountPath: /opt/chaincode
             name: artifacts
-            subPath: chaincode/java
+            subPath: DOMAIN/chaincode/java
 
           - mountPath: /opt/gopath/src
             name: artifacts
-            subPath: chaincode/go
+            subPath: DOMAIN/chaincode/go
 
 
 
-        volumes:
-           - name: artifacts
-             persistentVolumeClaim:
-               claimName: org2-pv
-           - name: run
-             hostPath:
-               path: /var/run
-               type: Directory
+      volumes:
+         - name: artifacts
+           persistentVolumeClaim:
+             claimName: ORGNIZATION-pv
+         - name: run
+           hostPath:
+             path: /var/run
+             type: Directory
        
 
 ---

@@ -16,33 +16,6 @@ spec:
         domain: DOMAIN
         orderer-id: ORDERER_NAME
     spec:
-      initContainers:
-      - name: init-myservice
-        image: "gcr.io/GCP_PROJECT_NAME/gcsfuse"
-        imagePullPolicy: Always
-        command: ['sh', '-c', 'bash /gcsfuse/setUp.sh']
-        securityContext:
-           privileged: true
-           capabilities:
-             add:
-               - SYS_ADMIN
-        env:
-          - name: DESTINATION_DIR
-            value: "/hf"
-          - name: FUSE_MOUNT_DIR
-            value: "/gcsfuse/temp"
-          - name: FUSE_BUCKET_NAME
-            value: "GCS_BUCKET"
-          - name: CRYPTO
-            value: "DOMAIN/crypto-config/ordererOrganizations/DOMAIN"
-          - name: CHANNEL
-            value: "DOMAIN/channel"
-        volumeMounts:
-         - name: certificate
-           mountPath: /hf/DOMAIN/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/
-         - name: channel
-           mountPath: /hf/DOMAIN/channel
-
       containers:
       - name: ORDERER_NAME
         image: hyperledger/fabric-orderer
@@ -73,14 +46,16 @@ spec:
         command: ["orderer"]
         volumeMounts:
          - mountPath: /etc/hyperledger/crypto/orderer
-           name: certificate
+           name: artifacts
+           subPath: DOMAIN/crypto-config/ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/
          - mountPath: /etc/hyperledger/configtx
-           name: channel
+           name: artifacts
+           subPath: DOMAIN/channel
+
       volumes:
-           - name: certificate
-             emptyDir: {}
-           - name: channel
-             emptyDir: {}
+        - name: artifacts
+          persistentVolumeClaim:
+            claimName: DOMAIN-pv
 
 
 ---

@@ -30,5 +30,7 @@ public class AppConfiguration {
   public String GCLOUD_DIR = "/usr/bin/";
   @Value("${k8.cluster:hyperledger-poc}")
   public String K8_CLUSTER = "hyperledger-poc";
+  @Value("${nfs.mount.path:/usr/local/google/home/chrisge/nfs/}")
+  public String NFS_MOUNT_PATH = "/usr/local/google/home/chrisge/nfs/";
 
 }

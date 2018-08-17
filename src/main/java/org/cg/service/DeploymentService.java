@@ -43,64 +43,75 @@ import org.springframework.stereotype.Component;
 @Component
 public class DeploymentService {
 
-  public static final String LIST_INSTANCES = "bash gcloud compute instances list";
-  public static final String SET_PROJECT = "gcloud config set project ";
-  public static final String SCP = "bash "
+  private static final String SET_PROJECT = "gcloud config set project ";
+  private static final String SCP = "bash "
       + "gcloud compute scp --recurse --project GCP_PROJECT --zone ZONE FILE PEERNAME:~/DEST_FILE";
-  public static final String SCP_TO_SERVER = "bash "
+  private static final String SCP_TO_SERVER = "bash "
       + "gcloud compute scp --recurse --project GCP_PROJECT --zone ZONE  PEERNAME:~/FILE DEST";
-  public static final String SSH = "bash " + "gcloud compute ssh ";
-  public static final String COPY_TO_STORAGE_CMD = "gsutil -m cp -r %s gs://%s";
+  private static final String SSH = "bash " + "gcloud compute ssh ";
+  private static final String COPY_TO_GCS_CMD = "gsutil -m cp -r %s gs://%s";
+  private static final String COPY_TO_NFS_CMD = "cp -r %s %s";
+  private static final String DELETE_FROM_NFS_CMD = "rm -r %s";
+  private static final String MOUNT_NFS_CMD = "sudo mount -t nfs -o proto=tcp,port=2049 %s:/exports %s";
+  private static final String UNMOUNT_TO_NFS_CMD = "sudo umount -f -l ";
+  private static final String CHANAGE_NFS_DIR_OWNER_CMD = "sudo chown %s:%s %s";
 
   private static final Logger log = LoggerFactory.getLogger(DeploymentService.class);
   private static final String COUCHDB_PORT_PLACEHOLDER = "COUDH_DB_PORT";
-  public static String ORG_NAMES = "                    - *";
-  public static String PROJECT_VM_DIR = "gbaas/";
-  public static String CRYPTO_DIR = "crypto-config/";
-  public static String PEER_NAME_SUFFIX = "-peer";
-  public static String EXTRA_HOSTS_PREFIX = "       - ";
-  public static String CONTAINER_WORKING_DIR = "/etc/hyperledger/artifacts/";
-  public static String DOCKER_CMD =
+  private static String ORG_NAMES = "                    - *";
+  private static String PROJECT_VM_DIR = "gbaas/";
+  private static String CRYPTO_DIR = "crypto-config/";
+  private static String CONTAINER_WORKING_DIR = "/etc/hyperledger/artifacts/";
+  private static String DOCKER_CMD =
       "docker-compose -f ./gbaas/docker-compose.yaml run CLI bash -c \\\"COMMAND\\\"";
-  public static String MSP_SUFFIX = "MSP";
-  public static String PEER_CA_FILE = "peerOrganizations/ORG.DOMAIN/peers/peer0.ORG/tls/";
-  public static String CRYPTO_FOLDER_FOR_COMPOSER =
+  private static String MSP_SUFFIX = "MSP";
+  private static String PEER_CA_FILE = "peerOrganizations/ORG.DOMAIN/peers/peer0.ORG/tls/";
+  private static String CRYPTO_FOLDER_FOR_COMPOSER =
       PROJECT_VM_DIR + CRYPTO_DIR + "peerOrganizations/ORG.DOMAIN/users/Admin@ORG/msp/";
-  public static String ORG_PLACEHOLDER = "ORGNIZATION";
-  public static String DOMAIN_PLACEHOLDER = "DOMAIN";
-  public static String ORDERER_NAME_PLACEHOLDER = "ORDERER_NAME";
-  public static String ORDERER_PORT_PLACEHOLDER = "ORDERER_PORT";
-  public static String PEER_PORT_PLACEHOLDER = "PEER_PORT";
-  public static String PEER_NAME_PLACEHOLDER = "PEER_NAME";
-  public static String PEER_EVENT_PORT_PLACEHOLDER = "PEER_EVENT_PORT";
-  public static String CONNECTION_FILE_NAME_TEMPLATE = "NETWORKNAME-connection-ORG";
-  public static String ANCHORPEER_CMD =
+  private static String ORG_PLACEHOLDER = "ORGNIZATION";
+  private static String NFS_IP_PLACEHOLDER = "NFS_IP";
+  private static String DOMAIN_PLACEHOLDER = "DOMAIN";
+  private static String ORDERER_NAME_PLACEHOLDER = "ORDERER_NAME";
+  private static String ORDERER_PORT_PLACEHOLDER = "ORDERER_PORT";
+  private static String PEER_PORT_PLACEHOLDER = "PEER_PORT";
+  private static String PEER_NAME_PLACEHOLDER = "PEER_NAME";
+  private static String PEER_EVENT_PORT_PLACEHOLDER = "PEER_EVENT_PORT";
+  private static String CONNECTION_FILE_NAME_TEMPLATE = "NETWORKNAME-connection-ORG";
+  private static String ANCHORPEER_CMD =
       "peer channel update -o ORDERER_HOST:ORDERER_PORT -c CHANNEL_NAME -f ANCHOR_FILE --tls --cafile ORDERER_CA";
-  public static String ORDERER_CA_IN_CONTAINER = "/etc/hyperledger/crypto/orderer/tls/ca.crt";
-  public static String ANCHOR_FILE_SUFFIX = "anchors.tx";
-  public static String CREATE_CARD_CMD =
+  private static String ORDERER_CA_IN_CONTAINER = "/etc/hyperledger/crypto/orderer/tls/ca.crt";
+  private static String ANCHOR_FILE_SUFFIX = "anchors.tx";
+  private static String CREATE_CARD_CMD =
       "composer card create -p CONNECTION_JSON -u PeerAdmin -c ADMIN_PEM -k SK_FILE -r PeerAdmin -r ChannelAdmin -f PeerAdmin@NAME.card";
-  public static String COMPOSER_IMPORT_CARD_CMD =
+  private static String COMPOSER_IMPORT_CARD_CMD =
       "composer card import -f PeerAdmin@NAME.card --card PeerAdmin@NAME";
-  public static String COMPOSER_DELETE_CARD_CMD = "composer card delete -c PeerAdmin@NAME";
-  public static String ORDERER_CA_FILE =
+  private static String COMPOSER_DELETE_CARD_CMD = "composer card delete -c PeerAdmin@NAME";
+  private static String ORDERER_CA_FILE =
       "ordererOrganizations/DOMAIN/orderers/orderer.DOMAIN/tls/";
-  public static String CRYPTO_DIR_PEER = "peerOrganizations/";
-  public static String CRYPTO_DIR_ORDERER = "ordererOrganizations/";
-  public static String CREATE_FOLDER_CMD = "mkdir -p -m u+x %s";
-  public static final int ORDERER_BASE_NODEPORT = 32000;
-  public static final String NODEPORT_PLACEHOLDER = "NODEPORT";
-  public static final String NODEPORT_PEER_PLACEHOLDER = "NODEPORT_PEER";
-  public static final String NODEPORT_PEER_EVENT_PLACEHOLDER = "NODEPORT_EVENT";
-  public static final String NODEPORT_PEER_CHAINCODE_PLACEHOLDER = "NODEPORT_CHAINCODE";
-  public static final String PEER_CHAINCODE_PORT_PLACEHOLDER = "PEER_CHAINCODE_PORT";
-  public static final String BUCKET_PLACEHOLDER = "GCS_BUCKET";
-  public static final String GCP_PROJECT_NAME_PLACEHOLDER = "GCP_PROJECT_NAME";
-  public static final String ADMIN_USER_PLACEHOLDER = "ADMIN_USER";
+  private static String CRYPTO_DIR_PEER = "peerOrganizations/";
+  private static String CRYPTO_DIR_ORDERER = "ordererOrganizations/";
+  private static String CREATE_FOLDER_CMD = "mkdir -p -m u+x %s";
+  private static final int ORDERER_BASE_NODEPORT = 32000;
+  private static final String NODEPORT_PLACEHOLDER = "NODEPORT";
+  private static final String NODEPORT_PEER_PLACEHOLDER = "NODEPORT_PEER";
+  private static final String NODEPORT_PEER_EVENT_PLACEHOLDER = "NODEPORT_EVENT";
+  private static final String NODEPORT_PEER_CHAINCODE_PLACEHOLDER = "NODEPORT_CHAINCODE";
+  private static final String PEER_CHAINCODE_PORT_PLACEHOLDER = "PEER_CHAINCODE_PORT";
+  private static final String BUCKET_PLACEHOLDER = "GCS_BUCKET";
+  private static final String GCP_PROJECT_NAME_PLACEHOLDER = "GCP_PROJECT_NAME";
+  private static final String ADMIN_USER_PLACEHOLDER = "ADMIN_USER";
 
-  public static int NODEPORT_FACTOR = 30000;
+  private static final String DELETE_SERVICE_CMD = "kubectl delete service --all -n ";
+  private static final String DELETE_NAMESPACE_CMD = "kubectl delete namespace ";
+  private static final String DELETE_DEPLOYMENT_CMD = "kubectl delete deployment --all -n ";
+  private static final String K8_DEPLOY_CMD = "kubectl apply -f ";
+  private static final String DELETE_PV_CMD = "kubectl delete pv %s -n %s";
+  private static final String DELETE_PVC_CMD = "kubectl delete pvc %s -n %s";
+
+
+  private static int NODEPORT_FACTOR = 30000;
   //which also limits the number of peers per org can have
-  public static int NODEPORT_INTERVAL = 100;
+  private static int NODEPORT_INTERVAL = 100;
   private final ObjectMapper mapper;
   private final AppConfiguration appConfiguration;
   public String cryptoGenCmd;
@@ -109,7 +120,8 @@ public class DeploymentService {
   private String cryptoPath;
   private String composerPath;
   private String idemixPath;
-
+  private String yamlFileDir = "k8_nfs";
+  private String nfsFileDir;
 
   @Autowired
   public DeploymentService(ObjectMapper mapper, AppConfiguration appConfiguration) {
@@ -136,6 +148,7 @@ public class DeploymentService {
     config.setGcpZoneName("us-east1-b");
     config.setChannelName("test");
     config.setDomain("test");
+    config.setNfsIp("10.63.253.112");
     config.setStorageBucket("hyperledger-poc");
     config.setOrgConfigs(Lists.newArrayList(property1, property2));
     DeploymentService ds = new DeploymentService(mapper, appConfiguration);
@@ -160,8 +173,9 @@ public class DeploymentService {
     // }
     // Map<String, Map<String, String>> orgNameIpMap = getInstanceNameIPMap(config);
     // log.info("The instance list is " + orgNameIpMap);
-    initService(config);
     Map<String, List<String>> orgPeerMap = getOrgPeerMap(config);
+
+    initService(config, orgPeerMap);
     // copyInstallScripts(orgNameIpMap, config);
     // copyInstallScripts(orgNameIpMap, config);
     // setupVm(orgNameIpMap, config);
@@ -176,10 +190,10 @@ public class DeploymentService {
     createConfigtxFiles(orgPeerMap, config);
     copyChaincode(orgPeerMap, config);
     copyGeneratedFilesToStorage(orgPeerMap, config);
-    //
+
+    createNamespaceDeploymentYamlFiles(config, orgPeerMap);
     String ordererYamlFile = createOrdererDeploymentYamlFiles(config);
     List<String> peerYamlFiles = createPeerDeploymentYamlFiles(config, orgPeerMap);
-    createNamespaceDeploymentYamlFiles(config, orgPeerMap);
     // List<String> cliYamlFiles = createCliDeploymentYamlFiles(config, orgPeerMap);
     // createCaServerYaml(orgNameIpMap, config);
 
@@ -218,23 +232,19 @@ public class DeploymentService {
     idemixPath = cryptoPath + "idemix";
     // idemixIssuerKeysCmd = "~/bin/idemixgen ca-keygen";
     // idemixSignerKeysCmd = "~/bin/idemixgen -u OU1 -e OU1 -r 1";
-
+    nfsFileDir = appConfiguration.NFS_MOUNT_PATH + config.getDomain() + "/";
+    if (config.getUseGcs()) {
+      yamlFileDir = "k8_gcs";
+    }
   }
 
-  public void initService(NetworkConfig config) {
+  public void initService(NetworkConfig config, Map<String, List<String>> orgPeerMap) {
 
     try {
       deleteFolders(workingDir);
       createDir(workingDir);
       createScriptFile(config);
-      // Files.copy(Paths.get(Resources.getResource("template/base.yaml").toURI()),
-      //     Paths.get(workingDir, "base.yaml"), StandardCopyOption.REPLACE_EXISTING);
-      // Files.copy(Paths.get(Resources.getResource("template/init-docker.sh").toURI()),
-      //     Paths.get(workingDir, "init-docker.sh"), StandardCopyOption.REPLACE_EXISTING);
-      // Files.copy(Paths.get(Resources.getResource("template/setup.sh").toURI()),
-      //     Paths.get(workingDir, "setup.sh"), StandardCopyOption.REPLACE_EXISTING);
-      // Files.copy(Paths.get(Resources.getResource("template/install-composer.sh").toURI()),
-      //     Paths.get(workingDir, "install-composer.sh"), StandardCopyOption.REPLACE_EXISTING);
+      deleteExistingApplication(orgPeerMap, config);
     } catch (Throwable t) {
       throw new RuntimeException("Cannot init the service ", t);
     }
@@ -269,6 +279,35 @@ public class DeploymentService {
       orgPeerMapBuilder.put(org, peers);
     }
     return orgPeerMapBuilder.build();
+  }
+
+  private void deleteExistingApplication(Map<String, List<String>> orgPeerMap,
+      NetworkConfig config) {
+
+    List<String> namespaces = Lists.newArrayList(orgPeerMap.keySet());
+    namespaces.add(config.getDomain());
+
+    namespaces.stream().forEach(n -> {
+      appendToFile(scriptFile, "echo " + DELETE_SERVICE_CMD + n);
+      appendToFile(scriptFile, DELETE_SERVICE_CMD + n);
+      appendToFile(scriptFile, "echo " + DELETE_DEPLOYMENT_CMD + n);
+      appendToFile(scriptFile, DELETE_DEPLOYMENT_CMD + n);
+
+      String cmd = String.format(DELETE_PVC_CMD, n + "-pv", n);
+      appendToFile(scriptFile, "echo " + cmd);
+      appendToFile(scriptFile, cmd);
+      appendToFile(scriptFile, "sleep 1");
+      cmd = String.format(DELETE_PV_CMD, n + "-pv", n);
+      appendToFile(scriptFile, "echo " + cmd);
+      appendToFile(scriptFile, cmd);
+
+    });
+
+    if (!config.getUseGcs()) {
+      appendToFile(scriptFile, String.format(DELETE_FROM_NFS_CMD, nfsFileDir));
+    }
+    appendToFile(scriptFile, "sleep 5");
+
   }
 
 
@@ -352,13 +391,17 @@ public class DeploymentService {
       NetworkConfig config) {
 
     appendToFile(scriptFile, "echo copying generated files to storage");
-    copyFolderToStorage(workingDir, config.getStorageBucket(), config.getDomain());
+    if (config.getUseGcs()) {
+      copyFolderToGCS(workingDir, config.getStorageBucket(), config.getDomain());
+    } else {
+      copyFolderToNFS(workingDir, nfsFileDir);
+    }
 
     // //orderer
     // try {
     //   appendToFile(scriptFile, "echo copying orderer crypto folder");
     //   String path = CRYPTO_DIR_ORDERER + config.getDomain();
-    //   copyFolderToStorage(cryptoPath + path, config.getStorageBucket(), config.getDomain());
+    //   copyFolderToGCS(cryptoPath + path, config.getStorageBucket(), config.getDomain());
     //
     //   //copy ca of peers from other org
     //   //todo: fuse orderer path to peer
@@ -379,7 +422,7 @@ public class DeploymentService {
     //
     //       String path = CRYPTO_DIR_PEER + orgDomain;
     //
-    //       copyFolderToStorage(cryptoPath + path, config.getStorageBucket(),
+    //       copyFolderToGCS(cryptoPath + path, config.getStorageBucket(),
     //           config.getDomain());
     //
     //     }
@@ -471,7 +514,7 @@ public class DeploymentService {
       String path = workingDir + "channel";
       appendToFile(scriptFile,
           "echo copying channel folder to bucket " + config.getStorageBucket());
-      copyFolderToStorage(path, config.getStorageBucket(), config.getDomain());
+      copyFolderToGCS(path, config.getStorageBucket(), config.getDomain());
     } catch (Throwable t) {
       throw new RuntimeException("Cannot write to script file ", t);
     }
@@ -516,7 +559,7 @@ public class DeploymentService {
 
     try {
       String ordererTemplate = new String(Files.readAllBytes(Paths.get(
-          Resources.getResource("k8_gcs/fabric_k8_template_orderer.yaml").toURI())));
+          Resources.getResource(yamlFileDir + "/fabric_k8_template_orderer.yaml").toURI())));
 
       //create orderer k8 yaml file
       String orderer =
@@ -530,7 +573,10 @@ public class DeploymentService {
 
       String fileName = String.join("", workingDir, "fabric_k8_orderer.yaml");
       Files.write(Paths.get(fileName), orderer.getBytes(), StandardOpenOption.CREATE);
-      appendToFile(scriptFile, "echo copying file " + fileName);
+      appendToFile(scriptFile, "echo apply file " + fileName);
+      appendToFile(scriptFile, K8_DEPLOY_CMD + fileName);
+      appendToFile(scriptFile, "sleep 5");
+
       return fileName;
     } catch (Throwable e) {
       throw new RuntimeException("Cannot create orderer k8 yaml file ", e);
@@ -546,7 +592,7 @@ public class DeploymentService {
 
     try {
       String peerTemplate = new String(Files.readAllBytes(Paths
-          .get(Resources.getResource("k8_gcs/fabric_k8_template_peer.yaml").toURI())));
+          .get(Resources.getResource(yamlFileDir + "/fabric_k8_template_peer.yaml").toURI())));
       //creating peer k8 yaml files
 
       List<String> orgList = new ArrayList<>(orgPeersMap.keySet());
@@ -583,7 +629,8 @@ public class DeploymentService {
               String.join("", "fabric_k8_", org, "-", peer, ".yaml");
           String fileName = String.join("", workingDir, yamlFileName);
           Files.write(Paths.get(fileName), content.getBytes(), StandardOpenOption.CREATE);
-          log.info(yamlFileName + " created.");
+          appendToFile(scriptFile, "echo apply file " + fileName);
+          appendToFile(scriptFile, K8_DEPLOY_CMD + fileName);
           peersYamlFiles.add(yamlFileName);
         }
       }
@@ -600,7 +647,7 @@ public class DeploymentService {
 
     try {
       String namespaceTemplate = new String(Files.readAllBytes(Paths.get(
-          Resources.getResource("k8_gcs/fabric_k8_template_namespace.yaml").toURI())));
+          Resources.getResource(yamlFileDir + "/fabric_k8_template_namespace.yaml").toURI())));
 
       Set<String> orgs = new HashSet<>(orgPeersMap.keySet());
       orgs.add(config.getDomain());
@@ -608,12 +655,16 @@ public class DeploymentService {
       for (String org : orgs) {
 
         //create orderer k8 yaml file
-        String namespace = namespaceTemplate.replaceAll(ORG_PLACEHOLDER, org);
+        String namespace = namespaceTemplate.replaceAll(ORG_PLACEHOLDER, org)
+            .replaceAll(NFS_IP_PLACEHOLDER, config.getNfsIp());
 
         String fileName = String.join("", workingDir, org, "_namespace.yaml");
         Files.write(Paths.get(fileName), namespace.getBytes(), StandardOpenOption.CREATE);
-        appendToFile(scriptFile, "echo copying file " + fileName);
+        appendToFile(scriptFile, "echo apply file " + fileName);
+        appendToFile(scriptFile, K8_DEPLOY_CMD + fileName);
       }
+
+      appendToFile(scriptFile, "sleep 5");
     } catch (Throwable e) {
       throw new RuntimeException("Cannot create namespace k8 yaml file ", e);
     }
@@ -1090,11 +1141,11 @@ public class DeploymentService {
 
   }
 
-  public void copyFolderToStorage(String sourceFolder, String bucket, String domain) {
+  public void copyFolderToGCS(String sourceFolder, String bucket, String domain) {
 
     try {
       appendToFile(scriptFile, String
-          .format(COPY_TO_STORAGE_CMD, sourceFolder, bucket + "/" + domain));
+          .format(COPY_TO_GCS_CMD, sourceFolder, bucket + "/" + domain));
     } catch (Throwable t) {
 
       throw new CommandFailedToRunException(
@@ -1102,6 +1153,20 @@ public class DeploymentService {
     }
 
   }
+
+  public void copyFolderToNFS(String sourceFolder, String nfsDir) {
+
+    try {
+      appendToFile(scriptFile, String
+          .format(COPY_TO_NFS_CMD, sourceFolder, nfsDir));
+    } catch (Throwable t) {
+
+      throw new CommandFailedToRunException(
+          "Cannot copy " + sourceFolder + " to nfs dir " + nfsDir, t);
+    }
+
+  }
+
 
   public void appendToFile(String fileName, String cmd) {
 
@@ -1151,7 +1216,7 @@ public class DeploymentService {
   }
 
   private int calculatePeerNodePort(int orgIndex, int peerIndex, int type) {
-    return NODEPORT_FACTOR + orgIndex * NODEPORT_INTERVAL + 2 * peerIndex + type;
+    return NODEPORT_FACTOR + orgIndex * NODEPORT_INTERVAL + 3 * peerIndex + type;
   }
 
   private int getOrdererNodePort(int ordererIndex) {

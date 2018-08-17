@@ -10,12 +10,12 @@ metadata:
   name: ORGNIZATION-pv
 spec:
   capacity:
-    storage: 500Mi
+    storage: 100Mi
   accessModes:
     - ReadWriteMany
   nfs:
     path: "/"
-    server: NFS_IP  #change to your nfs server ip here
+    server: NFS_IP
 
 ---
 apiVersion: v1
