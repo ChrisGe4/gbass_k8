@@ -43,3 +43,6 @@ gcloud container clusters create gbaas \
 
 gcloud iam service-accounts keys create  --iam-account chrisge@google.com gcloud_key.json
 gcloud iam service-accounts keys create  --iam-account 568020407566-compute@developer.gserviceaccount.com gcloud_key.json
+
+
+kubectl delete pod --all  -n test --grace-period=0 --force

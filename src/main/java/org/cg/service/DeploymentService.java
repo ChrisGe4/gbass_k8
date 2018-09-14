@@ -1,31 +1,11 @@
 package org.cg.service;
 
-import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toList;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMap.Builder;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Resources;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import org.apache.commons.io.FileUtils;
 import org.cg.config.AppConfiguration;
 import org.cg.error.CommandFailedToRunException;
@@ -36,6 +16,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
 
 /**
  * @author Chris.Ge
@@ -525,7 +519,6 @@ public class DeploymentService {
 
   }
 
-
   public void createCaServerYaml(Map<String, Map<String, String>> orgNameIpMap,
       NetworkConfig config) {
     log.info("Creating Ca Server Yaml files");
@@ -556,6 +549,64 @@ public class DeploymentService {
     }
 
   }
+
+  public String createServiceDeploymentYamlFiles(
+      NetworkConfig config) {
+    log.info("Creating Service yaml file");
+    List<String> serviceYamlFiles = Lists.newArrayList();
+
+    try {
+      String serviceTemplate = new String(Files.readAllBytes(Paths.get(
+          Resources.getResource(yamlFileDir + "/fabric_k8_template_service.yaml").toURI())));
+
+      List<String> orgList = new ArrayList<>(orgPeersMap.keySet());
+
+      for (int i = 0; i < orgList.size(); i++) {
+        String org = orgList.get(i);
+        List<String> peerList = orgPeersMap.get(org);
+        for (int j = 0; j < peerList.size(); j++) {
+
+          String peer = peerList.get(j);
+          PeerNodePort peerNodePort = getPeerNodePort(i, j);
+          String content =
+              peerTemplate.replaceAll(PEER_PORT_PLACEHOLDER, appConfiguration.PEER_PORT)
+                  .replaceAll(PEER_EVENT_PORT_PLACEHOLDER, appConfiguration.PEER_EVENT_PORT)
+                  .replaceAll(PEER_CHAINCODE_PORT_PLACEHOLDER, appConfiguration.PEER_CHAINCODE_PORT)
+                  .replaceAll(PEER_NAME_PLACEHOLDER, peer)
+                  .replaceAll(NODEPORT_PEER_PLACEHOLDER, String.valueOf(peerNodePort.getPeerPort()))
+                  .replaceAll(NODEPORT_PEER_EVENT_PLACEHOLDER,
+                      String.valueOf(peerNodePort.getEventPort()))
+                  .replaceAll(NODEPORT_PEER_CHAINCODE_PLACEHOLDER,
+                      String.valueOf(peerNodePort.getChaincodePort()))
+                  .replaceAll(DOMAIN_PLACEHOLDER, config.getDomain())
+                  .replaceAll(ORG_PLACEHOLDER, org)
+                  .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket())
+                  .replaceAll(COUCHDB_PORT_PLACEHOLDER, appConfiguration.COUDH_DB_PORT)
+                  .replaceAll(GCP_PROJECT_NAME_PLACEHOLDER, config.getGcpProjectName())
+                  .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket())
+                  //todo: hardcode for now
+                  .replaceAll(ADMIN_USER_PLACEHOLDER, "Admin");
+          // .replaceAll(PEER_NAME_PLACEHOLDER, peer).replaceAll("CA_PRIVATE_KEY",
+          //     orgDomainPkMap.get(org + "." + config.getDomain());
+
+          String yamlFileName =
+              String.join("", "fabric_k8_", org, "-", peer, ".yaml");
+          String fileName = String.join("", workingDir, yamlFileName);
+          Files.write(Paths.get(fileName), content.getBytes(), StandardOpenOption.CREATE);
+          appendToFile(scriptFile, "echo apply file " + fileName);
+          appendToFile(scriptFile, K8_DEPLOY_CMD + fileName);
+          peersYamlFiles.add(yamlFileName);
+        }
+      }
+
+      return fileName;
+    } catch (Throwable e) {
+      throw new RuntimeException("Cannot create orderer k8 yaml file ", e);
+    }
+  }
+
+
+
 
   public String createOrdererDeploymentYamlFiles(
       NetworkConfig config) {
