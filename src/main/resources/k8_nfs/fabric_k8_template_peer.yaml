@@ -63,7 +63,7 @@ spec:
         - name: CORE_PEER_ADDRESS
           value: PEER_NAME.ORGNIZATION:7051
         - name: CORE_PEER_CHAINCODEADDRESS
-          value: PEER_CLUSTER_IP:7052
+          value: SERVICE_CLUSTER_IP:7052
         workingDir: /opt/gopath/src/github.com/hyperledger/fabric/peer
         ports:
          - containerPort: PEER_PORT
@@ -150,35 +150,35 @@ spec:
              type: Directory
        
 
----
-apiVersion: v1
-kind: Service
-metadata:
-   namespace: ORGNIZATION
-   name: PEER_NAME
-spec:
- selector:
-   app: hyperledger
-   role: peer
-   peer-id: PEER_NAME
-   org: ORGNIZATION
- type: NodePort
- ports:
-   - name: externale-listen-endpoint
-     protocol: TCP
-     port: PEER_PORT
-     targetPort: PEER_PORT
-     nodePort: NODEPORT_PEER
-
-   - name: chaincode-listen
-     protocol: TCP
-     port: PEER_CHAINCODE_PORT
-     targetPort: PEER_CHAINCODE_PORT
-     nodePort: NODEPORT_CHAINCODE
-
-   - name: peer-event-listen
-     protocol: TCP
-     port: PEER_EVENT_PORT
-     targetPort: PEER_EVENT_PORT
-     nodePort: NODEPORT_EVENT
----
+#---
+#apiVersion: v1
+#kind: Service
+#metadata:
+#   namespace: ORGNIZATION
+#   name: PEER_NAME
+#spec:
+# selector:
+#   app: hyperledger
+#   role: peer
+#   peer-id: PEER_NAME
+#   org: ORGNIZATION
+# type: NodePort
+# ports:
+#   - name: externale-listen-endpoint
+#     protocol: TCP
+#     port: PEER_PORT
+#     targetPort: PEER_PORT
+#     nodePort: NODEPORT_PEER
+#
+#   - name: chaincode-listen
+#     protocol: TCP
+#     port: PEER_CHAINCODE_PORT
+#     targetPort: PEER_CHAINCODE_PORT
+#     nodePort: NODEPORT_CHAINCODE
+#
+#   - name: peer-event-listen
+#     protocol: TCP
+#     port: PEER_EVENT_PORT
+#     targetPort: PEER_EVENT_PORT
+#     nodePort: NODEPORT_EVENT
+#---

@@ -32,4 +32,4 @@ peer chaincode install -n fabcar -v 1.0 -p fabcar
 
 peer chaincode instantiate -o orderer.test:7050 --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt -C test  -n fabcar  -v 1.0 -c '{"Args":[""]}' -P "OR ('org1MSP.member','org2MSP.member')"
 
-kubectl get svc peer0 -n org1 -o yaml | grep clusterIP:
+kubectl get svc peer0 -n org1 -o yaml | grep clusterIP: |awk '{$1=$1};1'| cut -d' ' -f 2

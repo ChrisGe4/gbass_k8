@@ -1,11 +1,31 @@
 package org.cg.service;
 
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMap.Builder;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Resources;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.commons.io.FileUtils;
 import org.cg.config.AppConfiguration;
 import org.cg.error.CommandFailedToRunException;
@@ -16,20 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toList;
 
 /**
  * @author Chris.Ge
@@ -101,6 +107,11 @@ public class DeploymentService {
   private static final String K8_DEPLOY_CMD = "kubectl apply -f ";
   private static final String DELETE_PV_CMD = "kubectl delete pv %s -n %s";
   private static final String DELETE_PVC_CMD = "kubectl delete pvc %s -n %s";
+
+  private static final String GET_SERVICE_CLUSTER_IP_CMD = "kubectl get svc %s -n %s -o yaml | grep clusterIP:|awk '{$1=$1};1'| cut -d' ' -f 2";
+  private static final String SERVICE_CLUSTER_IP_PLACEHOLDER = "SERVICE_CLUSTER_IP";
+
+  private static final String REPLACE_SERVICE_CLUSTER_IP_CMD = "sed -i \"s/SERVICE_CLUSTER_IP/$(%s)/g\" %s";
 
 
   private static int NODEPORT_FACTOR = 30000;
@@ -189,6 +200,7 @@ public class DeploymentService {
     copyGeneratedFilesToStorage(orgPeerMap, config);
 
     createNamespaceDeploymentYamlFiles(config, orgPeerMap);
+    createServiceDeploymentYamlFiles(config, orgPeerMap);
     String ordererYamlFile = createOrdererDeploymentYamlFiles(config);
     List<String> peerYamlFiles = createPeerDeploymentYamlFiles(config, orgPeerMap);
     // List<String> cliYamlFiles = createCliDeploymentYamlFiles(config, orgPeerMap);
@@ -284,6 +296,7 @@ public class DeploymentService {
     namespaces.add(config.getDomain());
 
     namespaces.stream().forEach(n -> {
+
       appendToFile(scriptFile, "echo " + DELETE_SERVICE_CMD + n);
       appendToFile(scriptFile, DELETE_SERVICE_CMD + n);
       appendToFile(scriptFile, "sleep 5");
@@ -299,8 +312,13 @@ public class DeploymentService {
       appendToFile(scriptFile, "echo " + cmd);
       appendToFile(scriptFile, cmd);
 
-    });
+      appendToFile(scriptFile, "echo " + DELETE_NAMESPACE_CMD + n);
+      appendToFile(scriptFile, DELETE_NAMESPACE_CMD + n);
+      appendToFile(scriptFile, "sleep 5");
 
+    });
+    appendToFile(scriptFile, "echo " + DELETE_NAMESPACE_CMD + config.getDomain());
+    appendToFile(scriptFile, DELETE_NAMESPACE_CMD + config.getDomain());
     if (!config.getUseGcs()) {
       appendToFile(scriptFile, String.format(DELETE_FROM_NFS_CMD, nfsFileDir));
     }
@@ -550,8 +568,8 @@ public class DeploymentService {
 
   }
 
-  public String createServiceDeploymentYamlFiles(
-      NetworkConfig config) {
+  public List<String> createServiceDeploymentYamlFiles(
+      NetworkConfig config, Map<String, List<String>> orgPeersMap) {
     log.info("Creating Service yaml file");
     List<String> serviceYamlFiles = Lists.newArrayList();
 
@@ -569,7 +587,7 @@ public class DeploymentService {
           String peer = peerList.get(j);
           PeerNodePort peerNodePort = getPeerNodePort(i, j);
           String content =
-              peerTemplate.replaceAll(PEER_PORT_PLACEHOLDER, appConfiguration.PEER_PORT)
+              serviceTemplate.replaceAll(PEER_PORT_PLACEHOLDER, appConfiguration.PEER_PORT)
                   .replaceAll(PEER_EVENT_PORT_PLACEHOLDER, appConfiguration.PEER_EVENT_PORT)
                   .replaceAll(PEER_CHAINCODE_PORT_PLACEHOLDER, appConfiguration.PEER_CHAINCODE_PORT)
                   .replaceAll(PEER_NAME_PLACEHOLDER, peer)
@@ -578,28 +596,22 @@ public class DeploymentService {
                       String.valueOf(peerNodePort.getEventPort()))
                   .replaceAll(NODEPORT_PEER_CHAINCODE_PLACEHOLDER,
                       String.valueOf(peerNodePort.getChaincodePort()))
-                  .replaceAll(DOMAIN_PLACEHOLDER, config.getDomain())
-                  .replaceAll(ORG_PLACEHOLDER, org)
-                  .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket())
-                  .replaceAll(COUCHDB_PORT_PLACEHOLDER, appConfiguration.COUDH_DB_PORT)
-                  .replaceAll(GCP_PROJECT_NAME_PLACEHOLDER, config.getGcpProjectName())
-                  .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket())
-                  //todo: hardcode for now
-                  .replaceAll(ADMIN_USER_PLACEHOLDER, "Admin");
+                  .replaceAll(ORG_PLACEHOLDER, org);
           // .replaceAll(PEER_NAME_PLACEHOLDER, peer).replaceAll("CA_PRIVATE_KEY",
           //     orgDomainPkMap.get(org + "." + config.getDomain());
 
           String yamlFileName =
-              String.join("", "fabric_k8_", org, "-", peer, ".yaml");
+              String.join("", "fabric_k8_", org, "-", peer,"-service.yaml");
           String fileName = String.join("", workingDir, yamlFileName);
           Files.write(Paths.get(fileName), content.getBytes(), StandardOpenOption.CREATE);
           appendToFile(scriptFile, "echo apply file " + fileName);
           appendToFile(scriptFile, K8_DEPLOY_CMD + fileName);
-          peersYamlFiles.add(yamlFileName);
+          appendToFile(scriptFile, "sleep 5");
+          serviceYamlFiles.add(yamlFileName);
         }
       }
 
-      return fileName;
+      return serviceYamlFiles;
     } catch (Throwable e) {
       throw new RuntimeException("Cannot create orderer k8 yaml file ", e);
     }
@@ -658,17 +670,11 @@ public class DeploymentService {
         for (int j = 0; j < peerList.size(); j++) {
 
           String peer = peerList.get(j);
-          PeerNodePort peerNodePort = getPeerNodePort(i, j);
           String content =
               peerTemplate.replaceAll(PEER_PORT_PLACEHOLDER, appConfiguration.PEER_PORT)
                   .replaceAll(PEER_EVENT_PORT_PLACEHOLDER, appConfiguration.PEER_EVENT_PORT)
                   .replaceAll(PEER_CHAINCODE_PORT_PLACEHOLDER, appConfiguration.PEER_CHAINCODE_PORT)
                   .replaceAll(PEER_NAME_PLACEHOLDER, peer)
-                  .replaceAll(NODEPORT_PEER_PLACEHOLDER, String.valueOf(peerNodePort.getPeerPort()))
-                  .replaceAll(NODEPORT_PEER_EVENT_PLACEHOLDER,
-                      String.valueOf(peerNodePort.getEventPort()))
-                  .replaceAll(NODEPORT_PEER_CHAINCODE_PLACEHOLDER,
-                      String.valueOf(peerNodePort.getChaincodePort()))
                   .replaceAll(DOMAIN_PLACEHOLDER, config.getDomain())
                   .replaceAll(ORG_PLACEHOLDER, org)
                   .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket())
@@ -684,6 +690,8 @@ public class DeploymentService {
               String.join("", "fabric_k8_", org, "-", peer, ".yaml");
           String fileName = String.join("", workingDir, yamlFileName);
           Files.write(Paths.get(fileName), content.getBytes(), StandardOpenOption.CREATE);
+          appendToFile(scriptFile, "echo set service cluster ip to " + fileName);
+          appendToFile(scriptFile, String.format(REPLACE_SERVICE_CLUSTER_IP_CMD,String.format(GET_SERVICE_CLUSTER_IP_CMD,peer,org) ,fileName));
           appendToFile(scriptFile, "echo apply file " + fileName);
           appendToFile(scriptFile, K8_DEPLOY_CMD + fileName);
           peersYamlFiles.add(yamlFileName);
@@ -727,43 +735,8 @@ public class DeploymentService {
 
   }
 
-
-  public List<String> createCliDeploymentYamlFiles(
-      NetworkConfig config, Map<String, List<String>> orgPeersMap) {
-    List<String> cliYamlFiles = Lists.newArrayList();
-    log.info("Creating peers yaml files");
-
-    try {
-      String peerTemplate = new String(Files.readAllBytes(Paths
-          .get(Resources.getResource("k8_gcs/fabric_k8_template_cli.yaml").toURI())));
-
-      for (String org : orgPeersMap.keySet()) {
-        for (String peer : orgPeersMap.get(org)) {
-
-          String content =
-              peerTemplate
-                  .replaceAll(PEER_NAME_PLACEHOLDER, peer)
-                  .replaceAll(DOMAIN_PLACEHOLDER, config.getDomain())
-                  .replaceAll(ORG_PLACEHOLDER, org);
-          // .replaceAll(PEER_NAME_PLACEHOLDER, peer).replaceAll("CA_PRIVATE_KEY",
-          //     orgDomainPkMap.get(org + "." + config.getDomain());
-
-          String yamlFileName =
-              String.join("", "fabric_k8_", peer, "_cli.yaml");
-          String fileName = String.join("", workingDir, yamlFileName);
-          Files.write(Paths.get(fileName), content.getBytes(), StandardOpenOption.CREATE);
-          log.info(yamlFileName + " created.");
-          cliYamlFiles.add(yamlFileName);
-        }
-      }
-      return cliYamlFiles;
-    } catch (Throwable e) {
-      throw new RuntimeException("Cannot create peer k8 yaml file ", e);
-    }
-  }
-
-  public void createChannelBlock(Map<String, Map<String, String>> orgNameIpMap,
-      NetworkConfig config) {
+  public void createChannelBlock(
+      NetworkConfig,Map<String, List<String>> orgPeersMap) {
     log.info("calling createChannelBlock method");
 
     String org = orgNameIpMap.keySet().stream().filter(o -> !o.equals(config.getOrdererName()))
