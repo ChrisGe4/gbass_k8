@@ -2,9 +2,10 @@ curl -sSL http://bit.ly/2ysbOFE | bash -s 1.1.0
 
 
 peer channel create -o orderer.test:7050 -c test -f /opt/gopath/src/org/peer/channel-artifacts/test.tx --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
-
+peer channel join -b test.block
 
 peer channel fetch newest test.block -o orderer.test:7050 -c test --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
+peer channel fetch 0 test.block -o orderer.test:7050 -c  test  --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
 
 
 
@@ -12,10 +13,23 @@ peer channel fetch 0 0_block.pb -o orderer.test:7050 -c "test-orderer-syschan" -
 
 
 peer channel update -o orderer.test:7050 -c test -f org1MSPanchors.tx --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
+peer channel update -o orderer.test:7050 -c test -f org2MSPanchors.tx --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
 
 
 peer chaincode install -n mycc -v 1.0 -p chaincode_example02
 
 
+peer channel update -o orderer.test:7050 -c test -f org1MSPanchors.tx --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
+peer channel update -o orderer.test:7050 -c test -f org2MSPanchors.tx --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
 
-peer chaincode instantiate -o orderer.test:7050 --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt -C test -n mycc -v 1.0 -c '{"Args":["init","a","100","b","200"]}'
+
+peer chaincode instantiate -o orderer.test:7050 --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt -C test -n mycc -v 1.0 -c '{"Args":["init","a","100","b","200"]}' -P "OR	('org1MSP.peer','org2MSP.peer')"
+
+peer chaincode query -C test -n mycc -c '{"Args":["query","a"]}'
+
+
+peer chaincode install -n fabcar -v 1.0 -p fabcar
+
+peer chaincode instantiate -o orderer.test:7050 --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt -C test  -n fabcar  -v 1.0 -c '{"Args":[""]}' -P "OR ('org1MSP.member','org2MSP.member')"
+
+kubectl get svc peer0 -n org1 -o yaml | grep clusterIP:

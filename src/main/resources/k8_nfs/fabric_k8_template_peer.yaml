@@ -42,6 +42,10 @@ spec:
           value: "false" 
         - name: CORE_PEER_PROFILE_ENABLED
           value: "true"
+        - name: CORE_PEER_ADDRESSAUTODETECT
+          value: "true"
+        - name: CORE_PEER_EXTERNALENDPOINT
+          value: "true"
         - name: CORE_PEER_TLS_CERT_FILE
           value: "/etc/hyperledger/crypto/peer/tls/server.crt"
         - name: CORE_PEER_TLS_KEY_FILE
@@ -109,6 +113,8 @@ spec:
           value: cli
         - name: CORE_PEER_ADDRESS
           value: PEER_NAME.ORGNIZATION:PEER_PORT
+#        - name: CORE_PEER_SERVERHOSTOVERRIDE
+#          value: PEER_NAME.ORGNIZATION:PEER_PORT
         workingDir: /opt/gopath/src/org/peer/channel-artifacts
         command: [ "/bin/bash", "-c", "--" ]
         args: [ "while true; do sleep 30; done;" ]

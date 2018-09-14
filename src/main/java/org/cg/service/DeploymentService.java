@@ -103,7 +103,7 @@ public class DeploymentService {
 
   private static final String DELETE_SERVICE_CMD = "kubectl delete service --all -n ";
   private static final String DELETE_NAMESPACE_CMD = "kubectl delete namespace ";
-  private static final String DELETE_DEPLOYMENT_CMD = "kubectl delete deployment --all -n ";
+  private static final String DELETE_DEPLOYMENT_CMD = "kubectl delete deployment --all -n --force --grace-period=0";
   private static final String K8_DEPLOY_CMD = "kubectl apply -f ";
   private static final String DELETE_PV_CMD = "kubectl delete pv %s -n %s";
   private static final String DELETE_PVC_CMD = "kubectl delete pvc %s -n %s";
@@ -150,6 +150,7 @@ public class DeploymentService {
     config.setDomain("test");
     config.setNfsIp("10.63.253.112");
     config.setStorageBucket("hyperledger-poc");
+    config.setUseGcs(false);
     config.setOrgConfigs(Lists.newArrayList(property1, property2));
     DeploymentService ds = new DeploymentService(mapper, appConfiguration);
 
@@ -176,6 +177,8 @@ public class DeploymentService {
     Map<String, List<String>> orgPeerMap = getOrgPeerMap(config);
 
     initService(config, orgPeerMap);
+    //  deleteExistingApplication(orgPeerMap, config);
+
     // copyInstallScripts(orgNameIpMap, config);
     // copyInstallScripts(orgNameIpMap, config);
     // setupVm(orgNameIpMap, config);
@@ -244,7 +247,6 @@ public class DeploymentService {
       deleteFolders(workingDir);
       createDir(workingDir);
       createScriptFile(config);
-      deleteExistingApplication(orgPeerMap, config);
     } catch (Throwable t) {
       throw new RuntimeException("Cannot init the service ", t);
     }
@@ -290,13 +292,15 @@ public class DeploymentService {
     namespaces.stream().forEach(n -> {
       appendToFile(scriptFile, "echo " + DELETE_SERVICE_CMD + n);
       appendToFile(scriptFile, DELETE_SERVICE_CMD + n);
+      appendToFile(scriptFile, "sleep 5");
       appendToFile(scriptFile, "echo " + DELETE_DEPLOYMENT_CMD + n);
       appendToFile(scriptFile, DELETE_DEPLOYMENT_CMD + n);
+      appendToFile(scriptFile, "sleep 5");
 
       String cmd = String.format(DELETE_PVC_CMD, n + "-pv", n);
       appendToFile(scriptFile, "echo " + cmd);
       appendToFile(scriptFile, cmd);
-      appendToFile(scriptFile, "sleep 1");
+      appendToFile(scriptFile, "sleep 5");
       cmd = String.format(DELETE_PV_CMD, n + "-pv", n);
       appendToFile(scriptFile, "echo " + cmd);
       appendToFile(scriptFile, cmd);
