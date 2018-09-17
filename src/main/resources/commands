@@ -8,6 +8,8 @@ peer channel fetch newest test.block -o orderer.test:7050 -c test --tls --cafile
 peer channel fetch 0 test.block -o orderer.test:7050 -c  test  --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
 
 
+kubectl exec -it peer0-org1-db8dd8cf5-jrfps  -n org1 -c cli  -- peer channel create -o orderer.test:7050 -c test -f /opt/gopath/src/org/peer/channel-artifacts/test.tx --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
+
 
 peer channel fetch 0 0_block.pb -o orderer.test:7050 -c "test-orderer-syschan" --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
 
@@ -33,3 +35,13 @@ peer chaincode install -n fabcar -v 1.0 -p fabcar
 peer chaincode instantiate -o orderer.test:7050 --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt -C test  -n fabcar  -v 1.0 -c '{"Args":[""]}' -P "OR ('org1MSP.member','org2MSP.member')"
 
 kubectl get svc peer0 -n org1 -o yaml | grep clusterIP: |awk '{$1=$1};1'| cut -d' ' -f 2
+
+
+
+kubectl get pods -n org1  --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}'
+
+
+kubectl exec -it peer0-org1-db8dd8cf5-jrfps  -n org1 -c cli  -- peer channel create -o orderer.test:7050 -c test -f /opt/gopath/src/org/peer/channel-artifacts/test.tx --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
+kubectl exec -it $pod  -n org1 -c cli  -- peer channel create -o orderer.test:7050 -c test -f /opt/gopath/src/org/peer/channel-artifacts/test.tx --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
+
+
