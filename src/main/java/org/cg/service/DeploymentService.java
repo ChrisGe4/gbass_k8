@@ -176,8 +176,8 @@ public class DeploymentService {
     }
 
 
-    public Map<String, List<String>> deployFabric(NetworkConfig config, boolean deleteDeployment, boolean deleteService, boolean deletePVC,boolean deleteNameSpace,
-        ) {
+    public Map<String, List<String>> deployFabric(NetworkConfig config, boolean deleteDeployment,
+        boolean deleteService, boolean deletePVC, boolean deleteNameSpace,) {
         initialEnvVariables(config);
         // if (createInstance) {
         //   createInstances(config);
@@ -187,8 +187,8 @@ public class DeploymentService {
         Map<String, List<String>> orgPeerMap = getOrgPeerMap(config);
 
         initService(config, orgPeerMap);
-        deleteExistingApplication( config,  orgPeerMap,deleteDeployment,  deleteService,  deletePVC, deleteNameSpace
-        );
+        deleteExistingApplication(config, orgPeerMap, deleteDeployment, deleteService, deletePVC,
+            deleteNameSpace);
 
         // copyInstallScripts(orgNameIpMap, config);
         // copyInstallScripts(orgNameIpMap, config);
@@ -296,29 +296,29 @@ public class DeploymentService {
         return orgPeerMapBuilder.build();
     }
 
-    private void deleteExistingApplication(
-        NetworkConfig config,Map<String, List<String>> orgPeerMap,boolean deleteDeployment, boolean deleteService, boolean deletePVC,boolean deleteNameSpace,
-        ) {
+    private void deleteExistingApplication(NetworkConfig config,
+        Map<String, List<String>> orgPeerMap, boolean deleteDeployment, boolean deleteService,
+        boolean deletePVC, boolean deleteNameSpace,) {
 
         List<String> namespaces = Lists.newArrayList(orgPeerMap.keySet());
         namespaces.add(config.getDomain());
 
         namespaces.stream().forEach(n -> {
 
-            if(deleteDeployment){
+            if (deleteDeployment) {
                 runDeleteCommand(DELETE_DEPLOYMENT_CMD + n);
             }
 
-            if(deleteService){
+            if (deleteService) {
                 runDeleteCommand(DELETE_SERVICE_CMD + n);
             }
 
-            if(deletePVC){
-                runDeleteCommand( String.format(DELETE_PVC_CMD, n + "-pv", n));
+            if (deletePVC) {
+                runDeleteCommand(String.format(DELETE_PVC_CMD, n + "-pv", n));
                 runDeleteCommand(String.format(DELETE_PV_CMD, n + "-pv", n));
             }
 
-            if(deleteNameSpace){
+            if (deleteNameSpace) {
                 runDeleteCommand(DELETE_NAMESPACE_CMD + n);
             }
 
@@ -333,10 +333,10 @@ public class DeploymentService {
     }
 
 
-    private void runDeleteCommand(String cmd){
+    private void runDeleteCommand(String cmd) {
 
         appendToFile(scriptFile, "echo " + cmd);
-        appendToFile(scriptFile, cmd );
+        appendToFile(scriptFile, cmd);
         appendToFile(scriptFile, "sleep 5");
 
     }
