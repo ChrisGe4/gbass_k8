@@ -12,8 +12,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 
 /**
  * @author Chris.Ge
@@ -38,13 +36,17 @@ public class DeployFabricNetworkHandler {
 
     @PostMapping(value = "/fabric", headers = "Accept=application/json")
     public String deployFabricNetwork(
-        @RequestParam(value = "create_instance", defaultValue = "false", required = false)
-            Boolean createInstance,
-        @RequestParam(value = "install_software", defaultValue = "false", required = false)
-            Boolean installSoftware,
+        @RequestParam(value = "delete_deployment", defaultValue = "false", required = false)
+            Boolean deleteDeployment,
+        @RequestParam(value = "delete_service", defaultValue = "false", required = false)
+            Boolean deleteService,
+        @RequestParam(value = "delete_pvc", defaultValue = "false", required = false)
+            Boolean deletePVC,
+        @RequestParam(value = "delete_nameSpace", defaultValue = "false", required = false)
+            Boolean deleteNameSpace,
         @RequestBody NetworkConfig config) {
 
-        service.deployFabric(config, createInstance, installSoftware);
+        service.deployFabric(config, deleteDeployment, deleteService,deletePVC,deleteNameSpace);
 
         service.runScript();
         return "succeed";

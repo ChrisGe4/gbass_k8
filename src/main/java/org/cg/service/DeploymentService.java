@@ -176,8 +176,8 @@ public class DeploymentService {
     }
 
 
-    public Map<String, List<String>> deployFabric(NetworkConfig config, boolean createInstance,
-        boolean installSoftware) {
+    public Map<String, List<String>> deployFabric(NetworkConfig config, boolean deleteDeployment, boolean deleteService, boolean deletePVC,boolean deleteNameSpace,
+        ) {
         initialEnvVariables(config);
         // if (createInstance) {
         //   createInstances(config);
@@ -187,7 +187,8 @@ public class DeploymentService {
         Map<String, List<String>> orgPeerMap = getOrgPeerMap(config);
 
         initService(config, orgPeerMap);
-        //  deleteExistingApplication(orgPeerMap, config);
+        deleteExistingApplication( config,  orgPeerMap,deleteDeployment,  deleteService,  deletePVC, deleteNameSpace
+        );
 
         // copyInstallScripts(orgNameIpMap, config);
         // copyInstallScripts(orgNameIpMap, config);
@@ -295,32 +296,31 @@ public class DeploymentService {
         return orgPeerMapBuilder.build();
     }
 
-    private void deleteExistingApplication(Map<String, List<String>> orgPeerMap,
-        NetworkConfig config) {
+    private void deleteExistingApplication(
+        NetworkConfig config,Map<String, List<String>> orgPeerMap,boolean deleteDeployment, boolean deleteService, boolean deletePVC,boolean deleteNameSpace,
+        ) {
 
         List<String> namespaces = Lists.newArrayList(orgPeerMap.keySet());
         namespaces.add(config.getDomain());
 
         namespaces.stream().forEach(n -> {
 
-            appendToFile(scriptFile, "echo " + DELETE_SERVICE_CMD + n);
-            appendToFile(scriptFile, DELETE_SERVICE_CMD + n);
-            appendToFile(scriptFile, "sleep 5");
-            appendToFile(scriptFile, "echo " + DELETE_DEPLOYMENT_CMD + n);
-            appendToFile(scriptFile, DELETE_DEPLOYMENT_CMD + n);
-            appendToFile(scriptFile, "sleep 5");
+            if(deleteDeployment){
+                runDeleteCommand(DELETE_DEPLOYMENT_CMD + n);
+            }
 
-            String cmd = String.format(DELETE_PVC_CMD, n + "-pv", n);
-            appendToFile(scriptFile, "echo " + cmd);
-            appendToFile(scriptFile, cmd);
-            appendToFile(scriptFile, "sleep 5");
-            cmd = String.format(DELETE_PV_CMD, n + "-pv", n);
-            appendToFile(scriptFile, "echo " + cmd);
-            appendToFile(scriptFile, cmd);
+            if(deleteService){
+                runDeleteCommand(DELETE_SERVICE_CMD + n);
+            }
 
-            appendToFile(scriptFile, "echo " + DELETE_NAMESPACE_CMD + n);
-            appendToFile(scriptFile, DELETE_NAMESPACE_CMD + n);
-            appendToFile(scriptFile, "sleep 5");
+            if(deletePVC){
+                runDeleteCommand( String.format(DELETE_PVC_CMD, n + "-pv", n));
+                runDeleteCommand(String.format(DELETE_PV_CMD, n + "-pv", n));
+            }
+
+            if(deleteNameSpace){
+                runDeleteCommand(DELETE_NAMESPACE_CMD + n);
+            }
 
         });
         appendToFile(scriptFile, "echo " + DELETE_NAMESPACE_CMD + config.getDomain());
@@ -332,6 +332,14 @@ public class DeploymentService {
 
     }
 
+
+    private void runDeleteCommand(String cmd){
+
+        appendToFile(scriptFile, "echo " + cmd);
+        appendToFile(scriptFile, cmd );
+        appendToFile(scriptFile, "sleep 5");
+
+    }
 
     public void createCrypto(Map<String, List<String>> orgPeerMap, NetworkConfig config) {
         try {
