@@ -39,9 +39,11 @@ kubectl get svc peer0 -n org1 -o yaml | grep clusterIP: |awk '{$1=$1};1'| cut -d
 
 
 kubectl get pods -n org1  --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}'
+kubectl get pods -n default --selector=role=cassandra --field-selector=status.phase=Running, -o jsonpath='{.items[0].metadata.name}'
 
 
 kubectl exec -it peer0-org1-db8dd8cf5-jrfps  -n org1 -c cli  -- peer channel create -o orderer.test:7050 -c test -f /opt/gopath/src/org/peer/channel-artifacts/test.tx --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
 kubectl exec -it $pod  -n org1 -c cli  -- peer channel create -o orderer.test:7050 -c test -f /opt/gopath/src/org/peer/channel-artifacts/test.tx --tls --cafile /etc/hyperledger/crypto/orderer/tls/ca.crt
 
 
+For pods, only "metadata.name", "metadata.namespace", "spec.nodeName", "spec.restartPolicy", "spec.schedulerName", status.phase", "status.podIP", "status.nominatedNodeName", "sepc.nodeName" are supported.
