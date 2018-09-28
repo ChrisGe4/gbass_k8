@@ -4,7 +4,7 @@ package org.cg.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-import org.cg.config.AppConfiguration;
+import org.cg.core.AppConfiguration;
 import org.cg.pojo.NetworkConfig;
 import org.cg.pojo.OrgConfig;
 import org.slf4j.Logger;
@@ -42,7 +42,7 @@ public class DeployFabricNetworkHandler {
             Boolean deleteService,
         @RequestParam(value = "delete_pvc", defaultValue = "false", required = false)
             Boolean deletePVC,
-        @RequestParam(value = "delete_nameSpace", defaultValue = "false", required = false)
+        @RequestParam(value = "delete_namespace", defaultValue = "false", required = false)
             Boolean deleteNameSpace,
         @RequestBody NetworkConfig config) {
 

@@ -6,12 +6,12 @@ import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
-import java.io.IOException;
-import java.math.BigInteger;
-import java.net.URISyntaxException;
 import org.cg.auth.GCPAuthClient;
-import org.cg.config.AppConfiguration;
+import org.cg.core.AppConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.io.IOException;
+import java.net.URISyntaxException;
 
 public class K8DeploymentService {
 
