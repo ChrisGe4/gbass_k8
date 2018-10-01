@@ -16,9 +16,9 @@ public class AppConfiguration {
     public String CA_PORT = "7054";
     @Value("${couchdb.port:5984}")
     public String COUDH_DB_PORT = "5984";
-    @Value("${working.dir:~/blockchain/artifacts/}")
-    public String WORKING_DIR = "/usr/local/google/home/chrisge/blockchain/artifacts/";
-    //public String WORKING_DIR = "/Users/chrisge/blockchain/artifacts/";
+    @Value("${working.dir:/etc/blockchain/artifacts/}")
+    //public String WORKING_DIR = "/usr/local/google/home/chrisge/blockchain/artifacts/";
+    public String WORKING_DIR = "/Users/chrisge/blockchain/artifacts/";
     @Value("${peer.port:7051}")
     public String PEER_PORT = "7051";
     @Value("${peer.event.port:7053}")

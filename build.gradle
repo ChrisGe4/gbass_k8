@@ -47,6 +47,7 @@ jib {
         tags = ['latest']
     }
     container {
+        run =
         jvmFlags = ['-Xms512m', '-Xdebug']
         mainClass = 'org.cg.GbaasApplication'
         ports = ['9000']

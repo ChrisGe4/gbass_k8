@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+    name: gbaas
+---
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: gbaas
+  name:	gbaas-rest
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+       app: gbaas
+       role: service
+       type: rest
+    spec:
+
+      containers:
+      - name: gbaas-rest
+        image: gcr.io/hyperledger-poc/gbaas
+        imagePullPolicy: Always
+        ports:
+         - containerPort: 9000
+        volumeMounts:
+         - mountPath: /host/var/run/
+           name: run
+        securityContext:
+            privileged: true
+      volumes:
+         - name: run
+           hostPath:
+             path: /var/run
+             type: Directory
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+   namespace: gbaas
+   name: gbaas-rest
+spec:
+ selector:
+    app: gbaas
+    role: service
+    type: rest
+ type: "LoadBalancer"
+ ports:
+   - port: 9000
+---

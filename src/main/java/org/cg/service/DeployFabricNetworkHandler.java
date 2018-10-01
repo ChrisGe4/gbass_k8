@@ -4,19 +4,15 @@ package org.cg.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-import java.util.List;
 import org.cg.core.AppConfiguration;
 import org.cg.pojo.NetworkConfig;
 import org.cg.pojo.OrgConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 
 /**
@@ -94,6 +90,7 @@ public class DeployFabricNetworkHandler {
     config.setChannelName("test");
     config.setDomain("test");
     config.setNfsIp("10.63.253.112");
+    config.setNfsNamespace("default");
     config.setStorageBucket("hyperledger-poc");
     config.setUseGcs(false);
     config.setOrgConfigs(Lists.newArrayList(property1, property2));

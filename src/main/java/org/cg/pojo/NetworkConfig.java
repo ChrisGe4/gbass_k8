@@ -15,6 +15,7 @@ import java.util.List;
     "channelName",
     "storageBucket",
     "nfsIp",
+    "nfsNamespace",
     "useGcs",
     "orgConfigs"
 })
@@ -34,6 +35,8 @@ public class NetworkConfig {
   private String storageBucket;
   @JsonProperty("nfsIp")
   private String nfsIp;
+  @JsonProperty(value = "nfsNamespace" ,defaultValue = "default")
+  private String nfsNamespace;
   @JsonProperty(value = "useGcs", defaultValue = "false")
   private boolean useGcs;
   @JsonProperty("orgConfigs")
@@ -118,6 +121,15 @@ public class NetworkConfig {
   @JsonProperty("nfsIp")
   public void setNfsIp(String nfsIp) {
     this.nfsIp = nfsIp;
+  }
+
+  @JsonProperty("nfsNamespace")
+  public String getNfsNamespace() {
+    return nfsNamespace;
+  }
+  @JsonProperty("nfsNamespace")
+  public void setNfsNamespace(String nfsNamespace) {
+    this.nfsNamespace = nfsNamespace;
   }
 
   @JsonProperty("useGcs")
