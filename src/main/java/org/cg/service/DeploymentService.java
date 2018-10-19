@@ -149,10 +149,10 @@ public class DeploymentService {
             createScriptFile();
             appendToFile(scriptFile,
                 "export PATH=$PATH:" + appConfiguration.GCLOUD_DIR + System.lineSeparator());
-            appendToFile(scriptFile,
-                String.format(GET_CREDENTIAL, appConfiguration.CLUSTER, appConfiguration.ZONE));
-            appendToFile(scriptFile, SET_PROJECT + appConfiguration.PROJECT);
 
+            appendToFile(scriptFile, SET_PROJECT + appConfiguration.PROJECT);
+            appendToFile(scriptFile,
+              String.format(GET_CREDENTIAL, appConfiguration.CLUSTER, appConfiguration.ZONE));
 
         } catch (Throwable t) {
             throw new RuntimeException("Failed to  set cluster environment ", t);
