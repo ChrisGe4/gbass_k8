@@ -72,20 +72,20 @@ public class DeploymentService {
         property2.setOrg("org2");
         property2.setNumOfPeers(2);
         NetworkConfig config = new NetworkConfig();
-        config.setGcpProjectName("hyperledger-poc");
+        //  config.setGcpProjectName("hyperledger-poc");
         config.setOrdererName("orderer");
-        config.setGcpZoneName("us-east1-b");
+        //   config.setGcpZoneName("us-east1-b");
         config.setChannelName("test");
         config.setDomain("test");
         config.setNfsIp("10.63.253.112");
         config.setNfsNamespace("default");
-        config.setStorageBucket("hyperledger-poc");
-        config.setUseGcs(false);
+        //   config.setStorageBucket("hyperledger-poc");
+        //    config.setUseGcs(false);
         config.setOrgConfigs(Lists.newArrayList(property1, property2));
         DeploymentService ds = new DeploymentService(mapper, appConfiguration);
-
+        ds.setClusterEnvironment();
+        ds.runScript();
         Map<String, List<String>> orgPeerMap = ds.deployFabric(config, false, false, false, false);
-
         ds.runScript();
 
     }
@@ -121,45 +121,62 @@ public class DeploymentService {
 
     private void initialEnvVariables(NetworkConfig config) {
 
-        workingDir = System.getenv(WORKING_DIR_PROPERTY);
+        //workingDir = System.getenv(WORKING_DIR_PROPERTY);
         if (Strings.isNullOrEmpty(workingDir)) {
             workingDir = appConfiguration.WORKING_DIR + config.getDomain() + "/";
         }
 
         composerPath = workingDir + "composer/";
-        cryptoGenCmd = "~/bin/cryptogen generate --output=" + workingDir + "crypto-config --config="
-            + workingDir + "cryptogen.yaml";
+        cryptoGenCmd = appConfiguration.BIN_DIR + "cryptogen generate --output=" + workingDir
+            + "crypto-config --config=" + workingDir + "cryptogen.yaml";
         scriptFile = workingDir + "script.sh";
         cryptoPath = workingDir + CRYPTO_DIR;
         idemixPath = cryptoPath + "idemix";
         // idemixIssuerKeysCmd = "~/bin/idemixgen ca-keygen";
         // idemixSignerKeysCmd = "~/bin/idemixgen -u OU1 -e OU1 -r 1";
         nfsFileDir = appConfiguration.NFS_MOUNT_PATH + config.getDomain() + "/";
-        if (config.getUseGcs()) {
-            yamlFileDir = "k8_gcs";
-        }
+        //        if (config.getUseGcs()) {
+        //            yamlFileDir = "k8_gcs";
+        //        }
     }
+
+    public void setClusterEnvironment() {
+        try {
+
+            deleteFolders(appConfiguration.WORKING_DIR);
+            createDir(appConfiguration.WORKING_DIR);
+            scriptFile = appConfiguration.WORKING_DIR + "script.sh";
+            createScriptFile();
+            appendToFile(scriptFile,
+                "export PATH=$PATH:" + appConfiguration.GCLOUD_DIR + System.lineSeparator());
+            appendToFile(scriptFile,
+                String.format(GET_CREDENTIAL, appConfiguration.CLUSTER, appConfiguration.ZONE));
+            appendToFile(scriptFile, SET_PROJECT + appConfiguration.PROJECT);
+
+
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to  set cluster environment ", t);
+        }
+
+    }
+
 
     public void initService(NetworkConfig config, Map<String, List<String>> orgPeerMap) {
 
         try {
-            deleteFolders(workingDir);
+            // deleteFolders(workingDir);
             createDir(workingDir);
-            createScriptFile(config.getGcpProjectName());
+            createScriptFile();
         } catch (Throwable t) {
             throw new RuntimeException("Cannot init the service ", t);
         }
 
     }
 
-    private void createScriptFile(String projectName) {
+    private void createScriptFile() {
         try {
             Files.deleteIfExists(Paths.get(scriptFile));
-            Files.write(Paths.get(scriptFile),
-                ("export PATH=$PATH:" + appConfiguration.GCLOUD_DIR + "\n").getBytes(),
-                StandardOpenOption.CREATE);
-            appendToFile(scriptFile, SET_PROJECT + projectName);
-
+            Files.write(Paths.get(scriptFile), "".getBytes(), StandardOpenOption.CREATE);
             log.info("script file created");
             appendToFile(scriptFile, "");
         } catch (Throwable t) {
@@ -184,7 +201,7 @@ public class DeploymentService {
 
     public void deleteDeployments(List<String> namespaces, String projectName) {
 
-        createScriptFile(projectName);
+        createScriptFile();
         namespaces.stream().forEach(n -> {
 
             runDeleteCommand(String.format(DELETE_DEPLOYMENT_CMD, n));
@@ -226,12 +243,12 @@ public class DeploymentService {
             runDeleteCommand(DELETE_NAMESPACE_CMD + config.getDomain());
         }
         //todo: gcs clean up if needed
-        if (!config.getUseGcs()) {
-            //    appendToFile(scriptFile, String.format(DELETE_FROM_NFS_CMD, nfsFileDir));
-            appendToFile(scriptFile, String
-                .format(DELETE_FROM_NFS_POD, config.getNfsNamespace(), config.getNfsNamespace(),
-                    config.getDomain()));
-        }
+        //  if (!config.getUseGcs()) {
+        //    appendToFile(scriptFile, String.format(DELETE_FROM_NFS_CMD, nfsFileDir));
+        appendToFile(scriptFile, String
+            .format(DELETE_FROM_NFS_POD, config.getNfsNamespace(), config.getNfsNamespace(),
+                config.getDomain()));
+        //  }
         appendToFile(scriptFile, "sleep 5");
 
     }
@@ -318,13 +335,14 @@ public class DeploymentService {
         NetworkConfig config) {
 
         appendToFile(scriptFile, "echo copying generated files to storage");
-        if (config.getUseGcs()) {
-            copyFolderToGCS(workingDir, config.getStorageBucket(), config.getDomain());
-        } else {
-            //copyFolderToNFS(workingDir, nfsFileDir);
-            appendToFile(scriptFile,
-                String.format(COPY_TO_NFS_POD, workingDir, config.getNfsNamespace()));
-        }
+        //        if (config.getUseGcs()) {
+        //            copyFolderToGCS(workingDir, config.getStorageBucket(), config.getDomain());
+        //        } else {
+        //copyFolderToNFS(workingDir, nfsFileDir);
+        appendToFile(scriptFile, String
+            .format(COPY_TO_NFS_POD, config.getNfsNamespace(), workingDir,
+                config.getNfsNamespace()));
+        //   }
 
     }
 
@@ -373,22 +391,23 @@ public class DeploymentService {
             appendToFile(scriptFile, "export FABRIC_CFG_PATH=" + workingDir);
             log.info("Generating channel config transaction for %s channel",
                 config.getChannelName());
+            appendToFile(scriptFile, String.join("",
+                appConfiguration.BIN_DIR + "configtxgen -profile OrdererGenesis -outputBlock ", dir,
+                "genesis.block", " -channelID ", config.getDomain(), "-orderer-syschan "));
             appendToFile(scriptFile, String
-                .join("", "~/bin/configtxgen -profile OrdererGenesis -outputBlock ", dir,
-                    "genesis.block", " -channelID ", config.getDomain(), "-orderer-syschan "));
-            appendToFile(scriptFile, String
-                .join("", "~/bin/configtxgen -profile ", config.getChannelName(),
-                    " -outputCreateChannelTx ", dir, config.getChannelName(), ".tx -channelID ",
-                    config.getChannelName()));
+                .join("", appConfiguration.BIN_DIR + "configtxgen -profile ",
+                    config.getChannelName(), " -outputCreateChannelTx ", dir,
+                    config.getChannelName(), ".tx -channelID ", config.getChannelName()));
 
             Set<String> orgs = Sets.newHashSet(orgPeerMap.keySet());
             orgs.remove(config.getOrdererName());
 
             for (String org : orgs) {
                 appendToFile(scriptFile, String
-                    .join("", "~/bin/configtxgen -profile ", config.getChannelName(),
-                        " -outputAnchorPeersUpdate ", dir, org, "MSPanchors.tx -channelID ",
-                        config.getChannelName(), " -asOrg ", org, "MSP"));
+                    .join("", appConfiguration.BIN_DIR + "configtxgen -profile ",
+                        config.getChannelName(), " -outputAnchorPeersUpdate ", dir, org,
+                        "MSPanchors.tx -channelID ", config.getChannelName(), " -asOrg ", org,
+                        "MSP"));
             }
 
         } catch (Throwable e) {
@@ -397,18 +416,18 @@ public class DeploymentService {
 
     }
 
-    public void copyTxToStorage(NetworkConfig config) {
-        log.info("Distributing tx files");
-
-        try {
-            String path = workingDir + "channel";
-            appendToFile(scriptFile,
-                "echo copying channel folder to bucket " + config.getStorageBucket());
-            copyFolderToGCS(path, config.getStorageBucket(), config.getDomain());
-        } catch (Throwable t) {
-            throw new RuntimeException("Cannot write to script file ", t);
-        }
-    }
+    //    public void copyTxToStorage(NetworkConfig config) {
+    //        log.info("Distributing tx files");
+    //
+    //        try {
+    //            String path = workingDir + "channel";
+    //            appendToFile(scriptFile,
+    //                "echo copying channel folder to bucket " + config.getStorageBucket());
+    //            copyFolderToGCS(path, config.getStorageBucket(), config.getDomain());
+    //        } catch (Throwable t) {
+    //            throw new RuntimeException("Cannot write to script file ", t);
+    //        }
+    //    }
 
     public void createCaServerYaml(Map<String, Map<String, String>> orgNameIpMap,
         NetworkConfig config) {
@@ -505,8 +524,8 @@ public class DeploymentService {
                     .replaceAll(DOMAIN_PLACEHOLDER, config.getDomain())
                     .replaceAll(ORDERER_NAME_PLACEHOLDER, config.getOrdererName())
                     .replaceAll(NODEPORT_PLACEHOLDER, String.valueOf(getOrdererNodePort(1)))
-                    .replaceAll(GCP_PROJECT_NAME_PLACEHOLDER, config.getGcpProjectName())
-                    .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket());
+                    .replaceAll(GCP_PROJECT_NAME_PLACEHOLDER, appConfiguration.PROJECT);
+            //   .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket());
 
             String fileName = String.join("", workingDir, "fabric_k8_orderer.yaml");
             Files.write(Paths.get(fileName), orderer.getBytes(), StandardOpenOption.CREATE);
@@ -549,10 +568,9 @@ public class DeploymentService {
                             .replaceAll(PEER_NAME_PLACEHOLDER, peer)
                             .replaceAll(DOMAIN_PLACEHOLDER, config.getDomain())
                             .replaceAll(ORG_PLACEHOLDER, org)
-                            .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket())
                             .replaceAll(COUCHDB_PORT_PLACEHOLDER, appConfiguration.COUDH_DB_PORT)
-                            .replaceAll(GCP_PROJECT_NAME_PLACEHOLDER, config.getGcpProjectName())
-                            .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket())
+                            // .replaceAll(GCP_PROJECT_NAME_PLACEHOLDER, config.getGcpProjectName())
+                            //  .replaceAll(BUCKET_PLACEHOLDER, config.getStorageBucket())
                             //todo: hardcode for now
                             .replaceAll(ADMIN_USER_PLACEHOLDER, "Admin");
                     // .replaceAll(PEER_NAME_PLACEHOLDER, peer).replaceAll("CA_PRIVATE_KEY",
@@ -721,17 +739,17 @@ public class DeploymentService {
                 String host = String.join("-", org, "peer0");
                 appendToFile(scriptFile, "echo Deleting file " + cardFile + " in " + host);
                 appendToFile(scriptFile, String
-                    .join("", SSH, host, " --zone ", config.getGcpZoneName(), " --command \" ",
+                    .join("", SSH, host, " --zone ", appConfiguration.ZONE, " --command \" ",
                         deleteOldCardCmd, "\""));
                 String gcpCmd = String
-                    .join("", SSH, host, " --zone ", config.getGcpZoneName(), " --command \"",
+                    .join("", SSH, host, " --zone ", appConfiguration.ZONE, " --command \"",
                         createCardCommand, "\"");
                 appendToFile(scriptFile,
                     "echo creating file " + cardFile + ".card" + " in " + host);
                 appendToFile(scriptFile, gcpCmd);
                 String importCardCmd = COMPOSER_IMPORT_CARD_CMD.replaceAll("NAME", cardFile);
                 appendToFile(scriptFile, String
-                    .join("", SSH, host, " --zone ", config.getGcpZoneName(), " --command \" ",
+                    .join("", SSH, host, " --zone ", appConfiguration.ZONE, " --command \" ",
                         importCardCmd, "\""));
             }
             log.info("Composer admin cards were created");
@@ -747,11 +765,11 @@ public class DeploymentService {
         try {
             log.info("Running script file created");
             CommandRunner.runCommand(Lists.newArrayList("/bin/bash", "-c",
-                String.join(" ", "chmod u+x", workingDir + "script.sh")), log);
+                String.join(" ", "chmod u+x", scriptFile)), log);
 
             //CommandRunner.runCommand(Lists.newArrayList("/bin/sh", "-c", workingDir + "script.sh"), log);
             CommandRunner
-                .runCommand(Lists.newArrayList("/bin/bash", "-c", workingDir + "script.sh"), log);
+                .runCommand(Lists.newArrayList("/bin/bash", "-c",scriptFile), log);
 
         } catch (Throwable t) {
             throw new RuntimeException("Cannot run script file ", t);
@@ -765,8 +783,8 @@ public class DeploymentService {
 
         try {
 
-            appendToFile(scriptFile, SCP.replace("GCP_PROJECT", config.getGcpProjectName())
-                .replace("ZONE", config.getGcpZoneName()).replace("PEERNAME", peerName)
+            appendToFile(scriptFile, SCP.replace("GCP_PROJECT", appConfiguration.PROJECT)
+                .replace("ZONE", appConfiguration.ZONE).replace("PEERNAME", peerName)
                 .replace("DEST_FILE", destFileName).replace("FILE", file));
         } catch (Throwable t) {
 
@@ -779,10 +797,9 @@ public class DeploymentService {
         NetworkConfig config) {
 
         try {
-            appendToFile(scriptFile,
-                SCP_TO_SERVER.replace("GCP_PROJECT", config.getGcpProjectName())
-                    .replace("ZONE", config.getGcpZoneName()).replace("PEERNAME", peerName)
-                    .replace("DEST", destFileName).replace("FILE", file));
+            appendToFile(scriptFile, SCP_TO_SERVER.replace("GCP_PROJECT", appConfiguration.PROJECT)
+                .replace("ZONE", appConfiguration.ZONE).replace("PEERNAME", peerName)
+                .replace("DEST", destFileName).replace("FILE", file));
         } catch (Throwable t) {
 
             throw new CommandFailedToRunException("Cannot copy " + file + " to " + peerName, t);
@@ -823,7 +840,7 @@ public class DeploymentService {
             bw.append(cmd);
             bw.newLine();
         } catch (Throwable t) {
-            log.info(String.join(":", "Cannot add ", cmd, " to file", fileName));
+            log.info(String.join("", "Cannot add ", cmd, " to file", fileName));
             throw new RuntimeException(t);
         }
     }

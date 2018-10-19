@@ -34,6 +34,7 @@ public class DeployFabricNetworkHandler {
     this.properties = properties;
     this.service = service;
     this.objectMapper = objectMapper;
+    setupClusterEnvirenment();
   }
 
   @PostMapping(value = "/fabric", headers = "Accept=application/json")
@@ -84,19 +85,24 @@ public class DeployFabricNetworkHandler {
     property2.setOrg("org2");
     property2.setNumOfPeers(2);
     NetworkConfig config = new NetworkConfig();
-    config.setGcpProjectName("hyperledger-poc");
+  //  config.setGcpProjectName("hyperledger-poc");
     config.setOrdererName("orderer");
-    config.setGcpZoneName("us-east1-b");
+ //   config.setGcpZoneName("us-east1-b");
     config.setChannelName("test");
     config.setDomain("test");
     config.setNfsIp("10.63.253.112");
     config.setNfsNamespace("default");
-    config.setStorageBucket("hyperledger-poc");
-    config.setUseGcs(false);
+ //   config.setStorageBucket("hyperledger-poc");
+//    config.setUseGcs(false);
     config.setOrgConfigs(Lists.newArrayList(property1, property2));
 
     return objectMapper.writeValueAsString(config);
   }
 
+
+  private void setupClusterEnvirenment(){
+    service.setClusterEnvironment();
+    service.runScript();
+  }
 
 }

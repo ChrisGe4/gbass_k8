@@ -47,3 +47,6 @@ kubectl exec -it $pod  -n org1 -c cli  -- peer channel create -o orderer.test:70
 
 
 For pods, only "metadata.name", "metadata.namespace", "spec.nodeName", "spec.restartPolicy", "spec.schedulerName", status.phase", "status.podIP", "status.nominatedNodeName", "sepc.nodeName" are supported.
+
+
+gcloud container clusters get-credentials gbaas-test --zone=us-east4-a

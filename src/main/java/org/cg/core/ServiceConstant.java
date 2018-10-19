@@ -91,8 +91,10 @@ public class ServiceConstant {
     public static int NODEPORT_INTERVAL = 100;
     public static String WORKING_DIR_PROPERTY="WORKING_DIR";
 
-    public static String COPY_TO_NFS_POD ="kubectl cp %s $(kubectl get pods -n %s  --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}'):exports";
+    public static String COPY_TO_NFS_POD ="kubectl cp -n %s  %s $(kubectl get pods -n %s  --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}'):exports";
     public static String DELETE_FROM_NFS_POD ="kubectl exec  $(kubectl get pods -n %s  --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}') -n %s -- rm -rf exports/%s";
+    public static String GET_CREDENTIAL="gcloud container clusters get-credentials %s --zone=%s";
+
     private ServiceConstant() {
     }
 }

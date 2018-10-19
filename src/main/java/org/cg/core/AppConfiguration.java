@@ -19,6 +19,8 @@ public class AppConfiguration {
     @Value("${working.dir:/etc/blockchain/artifacts/}")
     //public String WORKING_DIR = "/usr/local/google/home/chrisge/blockchain/artifacts/";
     public String WORKING_DIR = "/Users/chrisge/blockchain/artifacts/";
+    @Value("${bin.dir:/bin/}")
+    public String BIN_DIR = "~/bin/";
     @Value("${peer.port:7051}")
     public String PEER_PORT = "7051";
     @Value("${peer.event.port:7053}")
@@ -29,8 +31,12 @@ public class AppConfiguration {
     public String COMPOSER_CONNECTION_FILE = "composer_connection";
     @Value("${gcloud.dir:/usr/bin/}")
     public String GCLOUD_DIR = "/usr/bin/";
-    @Value("${k8.cluster:hyperledger-poc}")
-    public String K8_CLUSTER = "hyperledger-poc";
+    @Value("${project:hyperledger-poc}")
+    public String PROJECT = "hyperledger-poc";
+    @Value("${zone:us-east4-a}")
+    public String ZONE = "us-east4-a";
+    @Value("${cluster:gbaas-test}")
+    public String CLUSTER = "gbaas-test";
     @Value("${nfs.mount.path:/usr/local/google/home/chrisge/nfs/}")
     public String NFS_MOUNT_PATH = "/usr/local/google/home/chrisge/nfs/";
 

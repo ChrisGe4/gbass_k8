@@ -23,7 +23,7 @@ spec:
 
       containers:
       - name: gbaas-rest
-        image: gcr.io/hyperledger-poc/gbaas
+        image: gcr.io/hyperledger-poc/gbaas_rest
         imagePullPolicy: Always
         ports:
          - containerPort: 9000
@@ -32,6 +32,13 @@ spec:
            name: run
         securityContext:
             privileged: true
+        env:
+         - name: PROJECT
+           value: hyperledger-poc
+         - name: ZONE
+           value: us-east4-a
+         - name: CLUSTER
+           value: gbaas-test
       volumes:
          - name: run
            hostPath:
