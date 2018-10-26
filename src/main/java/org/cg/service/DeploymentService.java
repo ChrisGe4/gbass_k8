@@ -112,6 +112,9 @@ public class DeploymentService {
         String ordererYamlFile = createOrdererDeploymentYamlFiles(config);
         List<String> peerYamlFiles = createPeerDeploymentYamlFiles(config, orgPeerMap);
 
+
+
+
         createChannelBlock(config, orgPeerMap);
         joinChannel(config, orgPeerMap);
         updateAnchorPeer(config, orgPeerMap);
@@ -173,7 +176,7 @@ public class DeploymentService {
 
     }
 
-    private void createScriptFile() {
+    private void createScriptFile(String scriptFile) {
         try {
             Files.deleteIfExists(Paths.get(scriptFile));
             Files.write(Paths.get(scriptFile), "".getBytes(), StandardOpenOption.CREATE);

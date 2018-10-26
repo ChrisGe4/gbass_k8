@@ -1,9 +1,9 @@
 apiVersion: extensions/v1beta1
-kind: Deployment
+kind: Pod
 metadata:
   name: nfs-server
 spec:
-  replicas: 1
+#  replicas: 1
   selector:
     matchLabels:
       role: nfs-server

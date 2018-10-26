@@ -1,13 +1,13 @@
 ###channel-artifacts is no room to place, however bind it to the orderer is an good idea
 
 apiVersion: extensions/v1beta1
-kind: Deployment
+kind: Pod
 metadata:
   namespace: DOMAIN
   name: ORDERER_NAME-DOMAIN
 spec:
-  replicas: 1
-  strategy: {}
+#  replicas: 1
+#  strategy: {}
   template:
     metadata:
       labels:

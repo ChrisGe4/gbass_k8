@@ -1,11 +1,11 @@
 apiVersion: extensions/v1beta1
-kind: Deployment
+kind: Pod
 metadata:
   namespace: ORGNIZATION
   name:	PEER_NAME-ORGNIZATION
 spec:
-  replicas: 1
-  strategy: {}
+#  replicas: 1
+#  strategy: {}
   template:
     metadata:
       creationTimestamp: null

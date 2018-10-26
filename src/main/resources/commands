@@ -39,6 +39,10 @@ kubectl get svc peer0 -n org1 -o yaml | grep clusterIP: |awk '{$1=$1};1'| cut -d
 
 
 kubectl get pods -n org1  --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}'
+
+kubectl get pods -n org1  --field-selector=metadata.name=peer0-org1-cddb546fc-6bs67 -o jsonpath='{.items[0].status.phase}'
+
+
 kubectl get pods -n default --selector=role=cassandra --field-selector=status.phase=Running, -o jsonpath='{.items[0].metadata.name}'
 
 
@@ -49,4 +53,10 @@ kubectl exec -it $pod  -n org1 -c cli  -- peer channel create -o orderer.test:70
 For pods, only "metadata.name", "metadata.namespace", "spec.nodeName", "spec.restartPolicy", "spec.schedulerName", status.phase", "status.podIP", "status.nominatedNodeName", "sepc.nodeName" are supported.
 
 
-gcloud container clusters get-credentials gbaas-test --zone=us-east4-a
+gcloud container clusters get-credentials gbaas-test --zone=us-east4-b
+
+gcloud container clusters create gbaas-test \
+  --num-nodes 2 \
+  --machine-type n1-standard-2 \
+  --zone us-east4-b \
+  --scopes cloud-platform
